@@ -292,7 +292,7 @@ plt.xlabel('Global Steps')
 plt.ylabel('Loss')
 plt.legend()
 plt.show()
-plt.savefig('wd_lstm_result.png')
+plt.savefig('word_lstm_result.png')
 
 def evaluate(model, test_loader, threshold=0.2):
     y_pred = []
