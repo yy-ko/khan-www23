@@ -28,7 +28,6 @@ train_test_ratio = 0.90
 train_valid_ratio = 0.80
 first_n_words = 25000
 
-# text 불용어(stopwords) 제거 함수
 def trim_string(x):
     stop_words = set(stopwords.words('english'))
     word_tokens = word_tokenize(x)
@@ -39,18 +38,14 @@ def trim_string(x):
     result = ' '.join(result[:first_n_words])
     return result
 
-# raw data 읽기
 df_raw = pd.read_csv(raw_data_path)
 
-# column 준비
-# 비어있는 텍스트가 존재하는 행 제거
 df_raw.drop(df_raw[df_raw.text.str.len()<5].index, inplace = True)
 
 df_raw['titletext'] = df_raw['title'] + '.' + df_raw['text']
 df_raw = df_raw[['label','titletext']]
 df_raw = df_raw.reindex(columns = ['label', 'titletext'])
 
-# 불용어 & 특수문자 제거
 # df_raw['text'] = df_raw['text'].astype(str).apply(trim_string)
 df_raw['titletext'] = df_raw['titletext'].astype(str).apply(trim_string)
 df_raw['titletext'] = df_raw['titletext'].str.replace(pat=r'[^\w]', repl=r' ', regex=True)
@@ -83,14 +78,14 @@ df_valid.to_csv(destination_folder + '/valid.csv', index=False, encoding='utf-8-
 df_test.to_csv(destination_folder + '/test.csv', index=False, encoding='utf-8-sig')
 
 # Fields
-label_field = Field(sequential = False, # 순서가 있는 데이터일경우 True / Label은 순서가 필요 없으므로 False
-                    use_vocab = False, # 단어장(vocab) 객체 사용 여부 / 텍스트 데이터에만 True
-                    batch_first = True, # 배치를 우선시
+label_field = Field(sequential = False,
+                    use_vocab = False,
+                    batch_first = True,
                     dtype = torch.float) 
-text_field = Field(tokenize = 'spacy', # 토큰화 도구로 spaCy 사용
+text_field = Field(tokenize = 'spacy', 
                    use_vocab = True,
-                   lower = True, # 소문자 전환 여부 (엉어)
-                   include_lengths = True, # 패딩된 미니 배치의 튜플과 각 샘플의 길이가 포함 된 목록을 반환 or 패딩된 미니 배치만 반환
+                   lower = True, 
+                   include_lengths = True, 
                    batch_first = True)
 fields = [('label', label_field), ('titletext', text_field)]
 
@@ -125,7 +120,7 @@ class LSTM(nn.Module):
                             hidden_size=dimension,
                             num_layers=1,
                             batch_first=True,
-                            bidirectional=True) # 양방향
+                            bidirectional=True) 
         self.drop = nn.Dropout(0.2)
         self.fc = nn.Linear(2*dimension, 3)
         self.softmax = nn.Softmax(dim=1)
@@ -313,12 +308,12 @@ def evaluate(model, test_loader, threshold=0.2):
     tn1, fp1, fn1, tp1 = ryu[1].ravel()
     tn2, fp2, fn2, tp2 = ryu[2].ravel()
     
-    recall0 = tp0/(tp0 + fn0) #재현율(=민감도) label 0
-    precision0 = tp0/(tp0 + fp0) #정밀도 label 0
-    recall1 = tp1/(tp1 + fn1) #재현율 label 1
-    precision1 = tp1/(tp1 + fp1) #정밀도 label 1
-    recall2 = tp2/(tp2 + fn2) #재현율 label 2
-    precision2 = tp2/(tp2 + fp2) #정밀도 label 2
+    recall0 = tp0/(tp0 + fn0) 
+    precision0 = tp0/(tp0 + fp0)
+    recall1 = tp1/(tp1 + fn1)
+    precision1 = tp1/(tp1 + fp1)
+    recall2 = tp2/(tp2 + fn2) 
+    precision2 = tp2/(tp2 + fp2)
     
     accuracy0 = (tp0 + tn0)/(tp0 + tn0 + fp0 + fn0)
     accuracy1 = (tp1 + tn1)/(tp1 + tn1 + fp1 + fn1)
