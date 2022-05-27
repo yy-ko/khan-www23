@@ -16,6 +16,7 @@ print('Count of using GPUs:', torch.cuda.device_count())
 import torch.optim as optim
 from tqdm import tqdm
 from sklearn.metrics import classification_report, multilabel_confusion_matrix
+import matplotlib.pyplot as plt
 # nltk.download('stopwords')
 # nltk.download('punkt')
 from nltk.corpus import stopwords
@@ -281,6 +282,17 @@ train(model=model, optimizer=optimizer, num_epochs=20)
 
 # EVALUATION
 print('****************************** MODEL EVALUATION ****************************************')
+
+train_loss_list, valid_loss_list, global_steps_list = load_metrics(destination_folder + '/metrics.pt')
+print('go go go')
+
+plt.plot(global_steps_list, train_loss_list, label='Train')
+plt.plot(global_steps_list, valid_loss_list, label='Valid')
+plt.xlabel('Global Steps')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+plt.savefig('wd_lstm_result.png')
 
 def evaluate(model, test_loader, threshold=0.2):
     y_pred = []
