@@ -98,17 +98,26 @@ prepro = list(map(preprocess_sentences,w_tokenize))
 sentence_embed=list(map(sentences_to_vectors,prepro))
 '''
 
-model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+# model = SentenceTransformer('paraphrase-MiniLM-L6-v2', device=device)
+# model = SentenceTransformer('all-mpnet-base-v2', device=device)
+model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+
+print("Max Sequence Length:", model.max_seq_length)
+#Change the length to 100
+model.max_seq_length = 100
+print("Max Sequence Length:", model.max_seq_length)
 
 def sentence_embedding(sentences):
-    return [model.encode(sentence).tolist() for sentence in sentences]
+    return [model.encode(sentence, device=device).tolist() for sentence in sentences]
 
 sentence_embed = sentence_embedding(sentences)
 
-# df_raw['s_embed']=sentence_embed
-# df_raw = df_raw[['label', 's_embed']]
-# df_raw = df_raw.reindex(columns = ['label', 's_embed'])
+df_raw['s_embed']=s_embed
+df_raw = df_raw[['label', 's_embed']]
+df_raw = df_raw.reindex(columns = ['label', 's_embed'])
+print(df_raw.head())
 
+texts = list(df_raw['s_embed'])
 labels = list(df_raw['label'])
 
 print('STEP-4: successfully completed SENTENCE-LEVEL EMBEDDING\n')
@@ -118,8 +127,8 @@ def get_vector(s):
     while len(s) < 64: 
         s.append([0] * 384)
     return s[:64]
-sentence_embed = [get_vector(s) for s in sentence_embed]
 
+sentence_embed = [get_vector(s) for s in sentence_embed]
 print('STEP-5: successfully completed SENTENCE-LEVEL SHAPE TRANSFORM\n')
 
 r = len(sentence_embed)*0.8
@@ -129,19 +138,17 @@ x_test = x_test.astype('float64')
 y = [label for label in labels]
 
 y_train, y_test = np.array(y[:int(r)]), np.array(y[int(r):])
-y_train = y_train.astype('float64')
-y_test = y_test.astype('float64')
 
 print(x_train.shape)
 print(y_train.shape)
 print(x_test.shape)
 print(y_test.shape)
 
-batch_size = 16
-total_epochs = 5
-train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-train_data = train_data.repeat().batch(batch_size, drop_remainder=True)
-steps_per_epoch = len(x_train) // batch_size
+# batch_size = 16
+total_epochs = 20
+# train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+# train_data = train_data.repeat().batch(batch_size, drop_remainder=True)
+# steps_per_epoch = len(x_train) // batch_size
 
 print('STEP-6: successfully completed BATCH-SIZE CONFIGURATION\n')
 
@@ -158,8 +165,12 @@ model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=
 
 print('STEP-7: MODEL TRAINING START\n')
 
+x_train = x_train.astype('float64')
+x_test = x_test.astype('float64')
+y_train = y_train.astype('float64')
+y_test = y_test.astype('float64')
 
-model.fit(train_data, epochs = total_epochs, steps_per_epoch = steps_per_epoch, validation_data=(x_test, y_test))
+model.fit(x_train, y_train, epochs = total_epochs, validation_data=(x_test, y_test))
 print()
 model.evaluate(x_test, y_test, verbose=2)
  
