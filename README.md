@@ -1,4 +1,4 @@
-# Knowledge-Aware Hierarchical Attention Networks (KHAN)
+# KHAN: Knowledge-Aware Hierarchical Attention Networks
 
 ## Requirements
 
