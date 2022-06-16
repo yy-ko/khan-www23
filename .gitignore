@@ -1,8 +1,10 @@
 __pycache__
 __pycache__/*
+__init__.py
 *.pyc
 nohup.out
 *.sh
 *.log
 *.swp
 *.txt
+.*
