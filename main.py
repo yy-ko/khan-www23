@@ -13,12 +13,13 @@ import torch.optim as optim
 #  import torch.distributed as dist
 from torch.optim.lr_scheduler import StepLR
 
-
-import dataloaders, models, utils
-
+import dataloaders, models
+from models import TransformerModel
 
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", FutureWarning)
+
+bptt = 35
 
 
 # for Reproducibility
@@ -32,27 +33,98 @@ def set_random_seeds(random_seed=0):
     random.seed(random_seed)
 
 
-def evaluate(model, device, test_loader):
-    model.eval()
-    correct = 0
-    total = 0
+def generate_square_subsequent_mask(sz: int) -> Tensor:
+    """Generates an upper-triangular matrix of -inf, with zeros on diag."""
+    return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1)
+
+
+def batchify(data: Tensor, bsz: int) -> Tensor:
+    """Divides the data into bsz separate sequences, removing extra elements
+    that wouldn't cleanly fit.
+
+    Args:
+        data: Tensor, shape [N]
+        bsz: int, batch size
+
+    Returns:
+        Tensor of shape [N // bsz, bsz]
+    """
+    seq_len = data.size(0) // bsz
+    data = data[:seq_len * bsz]
+    data = data.view(bsz, seq_len).t().contiguous()
+    return data
+
+def get_batch(source: Tensor, i: int) -> Tuple[Tensor, Tensor]:
+    """
+    Args:
+        source: Tensor, shape [full_seq_len, batch_size]
+        i: int
+
+    Returns:
+        tuple (data, target), where data has shape [seq_len, batch_size] and
+        target has shape [seq_len * batch_size]
+    """
+    seq_len = min(bptt, len(source) - 1 - i)
+    data = source[i:i+seq_len]
+    target = source[i+1:i+1+seq_len].reshape(-1)
+    return data, target
+
+
+
+
+def train(model: nn.Module, device) -> None:
+	model.train()  # turn on train mode
+
+	train_correct = 0
+	total_loss = 0.
+	log_interval = 200
+	src_mask = generate_square_subsequent_mask(bptt).to(device)
+	num_batches = len(train_data) // bptt
+
+
+	for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
+		data, targets = get_batch(train_data, i)
+		batch_size = data.size(0)
+		if batch_size != bptt:  # only on last batch
+			src_mask = src_mask[:batch_size, :batch_size]
+
+		# forward and backward passes
+		output = model(data, src_mask)
+		loss = criterion(output.view(-1, ntokens), targets)
+
+		optimizer.zero_grad()
+		loss.backward()
+		torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+		optimizer.step()
+
+		total_loss += loss.item()
+		if batch % log_interval == 0 and batch > 0:
+			lr = scheduler.get_last_lr()[0]
+			ms_per_batch = (time.time() - start_time) * 1000 / log_interval
+			cur_loss = total_loss / log_interval
+			ppl = math.exp(cur_loss)
+			print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
+				  f'lr {lr:02.2f} | ms/batch {ms_per_batch:5.2f} | '
+				  f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}')
+			total_loss = 0
+			start_time = time.time()
+
+
+
+def evaluate(model: nn.Module, eval_data: Tensor) -> float:
+    model.eval()  # turn on evaluation mode
+    total_loss = 0.
+    src_mask = generate_square_subsequent_mask(bptt).to(device)
     with torch.no_grad():
-        for inputs, labels in test_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            #  predictions = outputs.argmax(dim=1, keepdim=True)  
-            #  correct += predictions.eq(labels.view_as(predictions)).sum().item()
-
-    #  test_accuracy = correct / len(test_loader.dataset)
-
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).double().sum().item()
-
-    test_accuracy = correct / total
-
-    return test_accuracy
-
+        for i in range(0, eval_data.size(0) - 1, bptt):
+            data, targets = get_batch(eval_data, i)
+            batch_size = data.size(0)
+            if batch_size != bptt:
+                src_mask = src_mask[:batch_size, :batch_size]
+            output = model(data, src_mask)
+            output_flat = output.view(-1, ntokens)
+            total_loss += batch_size * criterion(output_flat, targets).item()
+    return total_loss / (len(eval_data) - 1)
 
 
 
@@ -109,15 +181,30 @@ def main():
     # ------------------------------------------------------------------------#
 
     # Get the model and data loaders
-    device = torch.device("cuda:{}".format(local_rank))
-    model = models.get_model(args.model)
+    #  device = torch.device("cuda:{}".format(local_rank))
+	device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+	# (TODO) model design
+	ntokens = len(vocab)  # size of vocabulary
+	emsize = 200  # embedding dimension
+	d_hid = 200  # dimension of the feedforward network model in nn.TransformerEncoder
+	nlayers = 2  # number of nn.TransformerEncoderLayer in nn.TransformerEncoder
+	nhead = 2  # number of heads in nn.MultiheadAttention
+	dropout = 0.2  # dropout probability
+
+
+	# preparing the model and data
+	model = TransformerModel(ntokens, emsize, nhead, d_hid, nlayers, dropout)
     model = model.to(device)
 
-    train_loader, test_loader = dataloaders.get_dataset(args.dataset, args.data_path, args.batch_size)
+	train_data, val_data, test_data = dataloaders.get_data()
+	train_data = batchify(train_data, args.batch_size)  # shape [seq_len, batch_size]
+	val_data = batchify(val_data, args.batch_size)
+	test_data = batchify(test_data, args.batch_size)
 
     criterion = nn.CrossEntropyLoss() # loss function
-    optimizer = utils.get_optimizer(model, args) # optimizer
-
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate) # optimizer
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95) # learning rate scheduling
 
     start_time = time.time()
     total_start_time = start_time
@@ -125,9 +212,6 @@ def main():
 
     num_batches = 0
     num_updates = 0
-
-    #  total_steps, warmup_steps, decaying_steps = utils.get_train_steps(args.dataset, args.batch_size, args.num_epochs, args.warmup_ratio)
-    #  meta_info = utils.initialize_meta_info(args.method, num_params)
 
 
     # ----------------------------------------------------------------------------#
@@ -138,37 +222,24 @@ def main():
     logging.info('=============================== Training Start ===============================')
     logging.info('\tepoch\tstep\ttrain\ttest\tloss\tthroughput')
 
+
     for epoch in range(args.num_epochs):
+		epoch_start_time = time.time()
+		train(model, train_data)
+		val_loss = evaluate(model, val_data)
+		val_ppl = math.exp(val_loss)
+		elapsed = time.time() - epoch_start_time
+		print('-' * 89)
+		print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
+			  f'valid loss {val_loss:5.2f} | valid ppl {val_ppl:8.2f}')
+		print('-' * 89)
 
-        model.train()
-        train_loader.sampler.set_epoch(epoch)
+		if val_loss < best_val_loss:
+			best_val_loss = val_loss
+			best_model = copy.deepcopy(model)
 
-        train_correct = 0
-        for batch_idx, (inputs, labels) in enumerate(train_loader):
-            inputs, labels = inputs.to(device), labels.to(device)
+		scheduler.step()
 
-            # forward and backward passes
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-
-            # computing training accuracy
-            predictions = outputs.argmax(dim=1, keepdim=True)
-            train_correct += predictions.eq(labels.view_as(predictions)).sum().item()
-
-            current_phase = num_batches % args.num_iterations
-
-            if current_phase == (args.num_iterations-1):
-                utils.local_average_and_allreduce(model, local_grads_list, num_batches_per_update)
-                meta_info = utils.get_scaling_factor(args.method, num_batches_per_update, local_grads_list, meta_info)
-
-                utils.set_learning_rate(args.dataset, optimizer, args.learning_rate, meta_info, total_steps, warmup_steps, decaying_steps, num_updates, num_batches_per_update, epoch+1, args.warmup)
-                optimizer.step()
-                num_updates += 1
-                local_grads_list = []
-
-            optimizer.zero_grad()
-            num_batches += 1
 
         elapsed_time = time.time() - start_time
         # ---------------------------- end of each training epoch ---------------------------- #
@@ -177,25 +248,25 @@ def main():
         # --------------------------------- EVALUATION --------------------------------- #
         # ----- at the end of every epoch, evaluating the current model a ccuracy ------ #
         # ------------------------------------------------------------------------------ #
-        train_accuracy = train_correct / len(train_loader.dataset) * world_size
-        test_accuracy = evaluate(model=model, device=device, test_loader=test_loader)
+        #  train_accuracy = train_correct / len(train_loader.dataset) * world_size
+        #  test_accuracy = evaluate(model=model, device=device, test_loader=test_loader)
 
-        if test_accuracy > max_accuracy:
-            max_accuracy = test_accuracy
+        #  if test_accuracy > max_accuracy:
+            #  max_accuracy = test_accuracy
 
-        throughput = len(train_loader.dataset) / elapsed_time
-        current_lr = optimizer.param_groups[0]['lr']
+        #  throughput = len(train_loader.dataset) / elapsed_time
+        #  current_lr = optimizer.param_groups[0]['lr']
 
-        logging.info('\t{}\t{}\t{:.4f}\t{:.4f}\t{:.4f}\t{:.2f}'.format(
-            (epoch+1),
-            num_updates,
-            train_accuracy,
-            test_accuracy,
-            loss.item(),
-            throughput)
-            )
+        #  logging.info('\t{}\t{}\t{:.4f}\t{:.4f}\t{:.4f}\t{:.2f}'.format(
+            #  (epoch+1),
+            #  num_updates,
+            #  train_accuracy,
+            #  test_accuracy,
+            #  loss.item(),
+            #  throughput)
+            #  )
 
-        start_time = time.time()
+        #  start_time = time.time()
 
         # ------------------------- Save Point ------------------------- #
         #  if args.save_model:

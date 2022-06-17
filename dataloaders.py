@@ -1,15 +1,45 @@
-from __future__ import print_function
-
-import torch
-import torch.distributed as dist
-
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from torch.utils.data.distributed import DistributedSampler
 
+from torchtext.datasets import WikiText2
+from torchtext.data.utils import get_tokenizer
+from torchtext.vocab import build_vocab_from_iterator
 
 
+def data_process(raw_text_iter: dataset.IterableDataset) -> Tensor:
+    """Converts raw text into a flat Tensor."""
+    data = [torch.tensor(vocab(tokenizer(item)), dtype=torch.long) for item in raw_text_iter]
+    return torch.cat(tuple(filter(lambda t: t.numel() > 0, data)))
+
+
+
+
+def get_data():
+    train_iter = WikiText2(split='train')
+    tokenizer = get_tokenizer('basic_english')
+    vocab = build_vocab_from_iterator(map(tokenizer, train_iter), specials=['<unk>'])
+    vocab.set_default_index(vocab['<unk>'])
+
+    # train_iter was "consumed" by the process of building the vocab,
+    # so we have to create it again
+    train_iter, val_iter, test_iter = WikiText2()
+    train_data = data_process(train_iter)
+    val_data = data_process(val_iter)
+    test_data = data_process(test_iter)
+
+    #  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    return train_data, val_data, test_data
+
+
+
+
+
+
+
+
+# ---------------------- Data Loader ---------------------- #
 def get_dataset(dataset, data_path, batch_size, world_size):
     # Prepare dataset and dataloader
     if dataset == 'MNIST':
@@ -95,20 +125,12 @@ def get_dataset(dataset, data_path, batch_size, world_size):
         valid_set = datasets.ImageFolder("/data/imageNet/raw-data/validation", transform=transform_validation)
 
 
-
     # Restricts data loading to a subset of the dataset exclusive to the current process
     dist_sampler = DistributedSampler(dataset=train_set, num_replicas=world_size)
 
     train_loader = DataLoader(dataset=train_set, batch_size=batch_size, sampler=dist_sampler, num_workers=4)
     valid_loader = DataLoader(dataset=valid_set, batch_size=batch_size, shuffle=False, num_workers=4)
 
-    #  train_loader = DataLoader(dataset=train_set, batch_size=batch_size, sampler=dist_sampler, num_workers=4, pin_memory=pin_memory)
-    #  valid_loader = DataLoader(dataset=valid_set, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=pin_memory)
-    #  test_loader = DataLoader(dataset=test_set, batch_size=200, shuffle=False, num_workers=4)
-
     return train_loader, valid_loader
 
-
-
-# add user-defined dataloaders
 
