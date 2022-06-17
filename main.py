@@ -113,9 +113,7 @@ def main():
     model = models.get_model(args.model)
     model = model.to(device)
 
-    train_loader, test_loader = dataloaders.get_dataset(args.dataset,
-                                                        args.data_path,
-                                                        args.batch_size)
+    train_loader, test_loader = dataloaders.get_dataset(args.dataset, args.data_path, args.batch_size)
 
     criterion = nn.CrossEntropyLoss() # loss function
     optimizer = utils.get_optimizer(model, args) # optimizer
@@ -199,19 +197,20 @@ def main():
 
         start_time = time.time()
 
-        ##########################################
-        #           Saving Current Model         #
-        ##########################################
+        # ------------------------- Save Point ------------------------- #
         #  if args.save_model:
             #  torch.save(model.state_dict(), args.model_dir)
 
 
-    if global_rank == 0:
-        total_train_time = time.time() - total_start_time
-        logging.info('')
-        logging.info('=============================== Training End ===============================')
-        logging.info('Final Test Accuracy: {:.4f}, Total training time: {:.2f} (sec.)'.format(max_accuracy, total_train_time))
-        logging.info('============================================================================')
+
+    # ----------------------------------------------------------------------------#
+    # ----------------------------- End of Training ------------------------------#
+    # ----------------------------------------------------------------------------#
+    total_train_time = time.time() - total_start_time
+    logging.info('')
+    logging.info('=============================== Training End ===============================')
+    logging.info('Final Test Accuracy: {:.4f}, Total training time: {:.2f} (sec.)'.format(max_accuracy, total_train_time))
+    logging.info('============================================================================')
 
 
 
