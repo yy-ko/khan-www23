@@ -4,7 +4,7 @@
 
 ## Usage
 ```
-python khan.py \
+python main.py \
   --param1=XX \
   --param2=XX \
   --paramk=XX 
