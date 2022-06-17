@@ -73,13 +73,13 @@ def get_batch(source: Tensor, i: int) -> Tuple[Tensor, Tensor]:
 
 
 def train(model: nn.Module, device) -> None:
-	model.train()  # turn on train mode
+    model.train()  # turn on train mode
 
-	train_correct = 0
-	total_loss = 0.
-	log_interval = 200
-	src_mask = generate_square_subsequent_mask(bptt).to(device)
-	num_batches = len(train_data) // bptt
+    train_correct = 0
+    total_loss = 0.
+    log_interval = 200
+    src_mask = generate_square_subsequent_mask(bptt).to(device)
+    num_batches = len(train_data) // bptt
 
 
 	for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
@@ -224,15 +224,15 @@ def main():
 
 
     for epoch in range(args.num_epochs):
-		epoch_start_time = time.time()
-		train(model, train_data)
-		val_loss = evaluate(model, val_data)
-		val_ppl = math.exp(val_loss)
-		elapsed = time.time() - epoch_start_time
-		print('-' * 89)
-		print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
+        epoch_start_time = time.time() 
+        train(model, train_data) 
+        val_loss = evaluate(model, val_data)
+        val_ppl = math.exp(val_loss)
+        elapsed = time.time() - epoch_start_time
+        print('-' * 89)
+        print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
 			  f'valid loss {val_loss:5.2f} | valid ppl {val_ppl:8.2f}')
-		print('-' * 89)
+        print('-' * 89)
 
 		if val_loss < best_val_loss:
 			best_val_loss = val_loss
