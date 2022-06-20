@@ -1,14 +1,19 @@
+import torch
+from torch import nn, Tensor
+
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from torch.utils.data.distributed import DistributedSampler
 
+from torch.utils.data import dataset
 from torchtext.datasets import WikiText2
+
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 
 
-def data_process(raw_text_iter: dataset.IterableDataset) -> Tensor:
+def data_process(raw_text_iter: dataset.IterableDataset, vocab, tokenizer) -> Tensor:
     """Converts raw text into a flat Tensor."""
     data = [torch.tensor(vocab(tokenizer(item)), dtype=torch.long) for item in raw_text_iter]
     return torch.cat(tuple(filter(lambda t: t.numel() > 0, data)))
@@ -25,12 +30,11 @@ def get_data():
     # train_iter was "consumed" by the process of building the vocab,
     # so we have to create it again
     train_iter, val_iter, test_iter = WikiText2()
-    train_data = data_process(train_iter)
-    val_data = data_process(val_iter)
-    test_data = data_process(test_iter)
+    train_data = data_process(train_iter, vocab, tokenizer)
+    val_data = data_process(val_iter, vocab, tokenizer)
+    test_data = data_process(test_iter, vocab, tokenizer)
 
-    #  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    return train_data, val_data, test_data
+    return train_data, val_data, test_data, len(vocab)
 
 
 

@@ -7,9 +7,12 @@ import time
 import logging
 import warnings
 
+import math
+from typing import Tuple
+
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, Tensor
+from torch import optim 
 #  import torch.distributed as dist
 from torch.optim.lr_scheduler import StepLR
 
@@ -71,14 +74,13 @@ def get_batch(source: Tensor, i: int) -> Tuple[Tensor, Tensor]:
 
 
 
-
-def train(model: nn.Module, device) -> None:
+def train(model: nn.Module, train_data, src_mask, criterion) -> None:
     model.train()  # turn on train mode
 
     train_correct = 0
     total_loss = 0.
     log_interval = 200
-    src_mask = generate_square_subsequent_mask(bptt).to(device)
+    #  src_mask = generate_square_subsequent_mask(bptt).to(device)
     num_batches = len(train_data) // bptt
 
 
@@ -88,7 +90,7 @@ def train(model: nn.Module, device) -> None:
         if batch_size != bptt:  # only on last batch 
             src_mask = src_mask[:batch_size, :batch_size]
 
-		# forward and backward passes
+        # forward and backward passes
         output = model(data, src_mask) 
         loss = criterion(output.view(-1, ntokens), targets)
 
@@ -104,17 +106,17 @@ def train(model: nn.Module, device) -> None:
             cur_loss = total_loss / log_interval 
             ppl = math.exp(cur_loss) 
             print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
-				  f'lr {lr:02.2f} | ms/batch {ms_per_batch:5.2f} | '
-				  f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}') 
+                    f'lr {lr:02.2f} | ms/batch {ms_per_batch:5.2f} | '
+                    f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}') 
             total_loss = 0 
             start_time = time.time()
 
 
 
-def evaluate(model: nn.Module, eval_data: Tensor) -> float:
+def evaluate(model: nn.Module, eval_data: Tensor, src_mask) -> float:
     model.eval()  # turn on evaluation mode
     total_loss = 0.
-    src_mask = generate_square_subsequent_mask(bptt).to(device)
+    #  src_mask = generate_square_subsequent_mask(bptt).to(device)
     with torch.no_grad():
         for i in range(0, eval_data.size(0) - 1, bptt):
             data, targets = get_batch(eval_data, i)
@@ -137,17 +139,16 @@ def main():
     #  parser.add_argument("--local_rank", type=int, help="Local rank. Necessary for using the torch.distributed.launch utility.")
 
     # models & datasets
-    parser.add_argument('--model', type=str, default='RESNET18', help='Name of Model.')
-    parser.add_argument("--method", type=str, default='LSW', help="LR scaling method for large batch training.")
+    parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
     parser.add_argument('--dataset', type=str, default='CIFAR10', help='Name of dataset.')
     parser.add_argument('--data_path', type=str, default='/data', help='Data path.')
 
-    parser.add_argument('--save_model', action='store_true', default=False, help='For Saving the current Model')
+    parser.add_argument('--save_model', action='store_false', default=False, help='For Saving the current Model')
     parser.add_argument('--model_dir', type=str, default='../trained_models', help='Path for saving the trained model')
 
     # user-defined parameters
-    parser.add_argument("--num_epochs", type=int, default=10, help="Number of training epochs.")
-    parser.add_argument("--batch_size", type=int, default=128, help="Training batch size for one process.")
+    parser.add_argument("--num_epochs", type=int, default=100, help="Number of training epochs.")
+    parser.add_argument("--batch_size", type=int, default=64, help="Training batch size for one process.")
     parser.add_argument("--learning_rate", type=float, default=0.1, help="Learning rate.")
     parser.add_argument('--seed', type=int, default=1, metavar='S', help='Random seed (default: 1)') # for reproducibility
 
@@ -179,28 +180,34 @@ def main():
     # ------------------------------------------------------------------------#
     # ---------------------------- Training Setup ----------------------------#
     # ------------------------------------------------------------------------#
-
     # Get the model and data loaders
     #  device = torch.device("cuda:{}".format(local_rank))
-	device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-	# (TODO) model design
-	ntokens = len(vocab)  # size of vocabulary
-	emsize = 200  # embedding dimension
-	d_hid = 200  # dimension of the feedforward network model in nn.TransformerEncoder
-	nlayers = 2  # number of nn.TransformerEncoderLayer in nn.TransformerEncoder
-	nhead = 2  # number of heads in nn.MultiheadAttention
-	dropout = 0.2  # dropout probability
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-	# preparing the model and data
-	model = TransformerModel(ntokens, emsize, nhead, d_hid, nlayers, dropout)
+    train_data, val_data, test_data, vocab_len = dataloaders.get_data()
+    train_data = batchify(train_data, args.batch_size)  # shape [seq_len, batch_size]
+    val_data = batchify(val_data, args.batch_size)
+    test_data = batchify(test_data, args.batch_size)
+
+    train_data = train_data.to(device)
+    val_data = val_data.to(device)
+    test_data = test_data.to(device)
+
+
+    # (TODO) model design
+    #  ntokens = len(vocab)  # size of vocabulary
+    ntokens = vocab_len  # size of vocabulary
+    emsize = 200  # embedding dimension
+    d_hid = 200  # dimension of the feedforward network model in nn.TransformerEncoder
+    nlayers = 2  # number of nn.TransformerEncoderLayer in nn.TransformerEncoder
+    nhead = 2  # number of heads in nn.MultiheadAttention
+    dropout = 0.2  # dropout probability
+
+
+    # preparing the model and data
+    model = TransformerModel(ntokens, emsize, nhead, d_hid, nlayers, dropout)
     model = model.to(device)
-
-	train_data, val_data, test_data = dataloaders.get_data()
-	train_data = batchify(train_data, args.batch_size)  # shape [seq_len, batch_size]
-	val_data = batchify(val_data, args.batch_size)
-	test_data = batchify(test_data, args.batch_size)
 
     criterion = nn.CrossEntropyLoss() # loss function
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate) # optimizer
@@ -217,28 +224,74 @@ def main():
     # ----------------------------------------------------------------------------#
     # ---------------------------- Main Training Loop ----------------------------#
     # ----------------------------------------------------------------------------#
-
     logging.info('')
     logging.info('=============================== Training Start ===============================')
     logging.info('\tepoch\tstep\ttrain\ttest\tloss\tthroughput')
 
 
+    src_mask = generate_square_subsequent_mask(bptt).to(device)
+
     for epoch in range(args.num_epochs):
         epoch_start_time = time.time() 
-        train(model, train_data) 
-        val_loss = evaluate(model, val_data)
+        #  train(model, train_data, src_mask) 
+
+#  def train(model: nn.Module, train_data, src_mask, criterion) -> None:
+        model.train()  # turn on train mode
+
+        train_correct = 0
+        total_loss = 0.
+        log_interval = 200
+        #  src_mask = generate_square_subsequent_mask(bptt).to(device)
+        num_batches = len(train_data) // bptt
+
+
+        for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
+            data, targets = get_batch(train_data, i)
+            batch_size = data.size(0)
+            if batch_size != bptt:  # only on last batch 
+                src_mask = src_mask[:batch_size, :batch_size]
+
+            # forward and backward passes
+            output = model(data, src_mask) 
+            loss = criterion(output.view(-1, ntokens), targets)
+
+            optimizer.zero_grad() 
+            loss.backward() 
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5) 
+            optimizer.step()
+
+            total_loss += loss.item() 
+            if batch % log_interval == 0 and batch > 0: 
+                lr = scheduler.get_last_lr()[0] 
+                ms_per_batch = (time.time() - start_time) * 1000 / log_interval 
+                cur_loss = total_loss / log_interval 
+                ppl = math.exp(cur_loss) 
+                print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
+                        f'lr {lr:02.2f} | ms/batch {ms_per_batch:5.2f} | '
+                        f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}') 
+                total_loss = 0 
+                start_time = time.time()
+
+
+
+
+
+
+
+
+        val_loss = evaluate(model, val_data, src_mask)
         val_ppl = math.exp(val_loss)
         elapsed = time.time() - epoch_start_time
         print('-' * 89)
         print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
-			  f'valid loss {val_loss:5.2f} | valid ppl {val_ppl:8.2f}')
+                f'valid loss {val_loss:5.2f} | valid ppl {val_ppl:8.2f}')
         print('-' * 89)
 
-		if val_loss < best_val_loss:
-			best_val_loss = val_loss
-			best_model = copy.deepcopy(model)
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_model = copy.deepcopy(model)
 
-		scheduler.step()
+        scheduler.step()
 
 
         elapsed_time = time.time() - start_time
