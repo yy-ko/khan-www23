@@ -129,6 +129,7 @@ def main():
         model.train()  # turn on train mode 
         train_correct, train_count = 0, 0 
         start_time = time.time()
+        total_loss = 0.
 
         # ------------------------ Epoch Start ------------------------ #
         for idx, (label, text, offsets) in enumerate(train_data):
@@ -138,8 +139,10 @@ def main():
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
             optimizer.step()
+
             train_correct += (predicted_label.argmax(1) == label).sum().item()
-            train_count += label.size(0)
+            train_count += label.size(0) 
+            total_loss += loss.item()
 
         scheduler.step()
         epoch_time = time.time() - epoch_start_time
@@ -153,7 +156,7 @@ def main():
 
         print('Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f}'.format(
             (epoch+1),
-            loss.item(),
+            total_loss/ len(train_data), 
             train_accuracy,
             val_accuracy,
             epoch_time)
