@@ -1,140 +1,57 @@
 import torch
-from torch import nn, Tensor
-
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-from torch.utils.data import random_split
+from torch.utils.data import dataset, DataLoader, random_split
 from torch.utils.data.distributed import DistributedSampler
 
-from torch.utils.data import dataset
-from torchtext.datasets import WikiText2
-
+from torchtext.datasets import WikiText2, AG_NEWS
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
-
-
-def data_process(raw_text_iter: dataset.IterableDataset, vocab, tokenizer) -> Tensor:
-    """Converts raw text into a flat Tensor."""
-    data = [torch.tensor(vocab(tokenizer(item)), dtype=torch.long) for item in raw_text_iter]
-    return torch.cat(tuple(filter(lambda t: t.numel() > 0, data)))
+from torchtext.data.functional import to_map_style_dataset
 
 
 
+def yield_tokens(data_iter, tokenizer):
+    for _, text in data_iter:
+        yield tokenizer(text)
 
-def get_data():
-    train_iter = WikiText2(split='train')
+def get_dataloaders(dataset, data_path, batch_size, device):
+    train_iter = AG_NEWS(split='train')
+    num_class = len(set([label for (label, text) in train_iter]))
+
     tokenizer = get_tokenizer('basic_english')
-    vocab = build_vocab_from_iterator(map(tokenizer, train_iter), specials=['<unk>'])
+    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>'])
     vocab.set_default_index(vocab['<unk>'])
 
-    # train_iter was "consumed" by the process of building the vocab,
-    # so we have to create it again
-    train_iter, val_iter, test_iter = WikiText2()
-    train_data = data_process(train_iter, vocab, tokenizer)
-    val_data = data_process(val_iter, vocab, tokenizer)
-    test_data = data_process(test_iter, vocab, tokenizer)
+    def collate_batch(batch): # split a label and text in each row
+        text_pipeline = lambda x: vocab(tokenizer(x))
+        label_pipeline = lambda x: int(x) - 1
 
-    return train_data, val_data, test_data, len(vocab)
+        label_list, text_list, offsets = [], [], [0] 
+        for (_label, _text) in batch: 
+            label_list.append(label_pipeline(_label))
+            processed_text = torch.tensor(text_pipeline(_text), dtype=torch.int64) 
+            text_list.append(processed_text) 
+            offsets.append(processed_text.size(0)) 
 
+        label_list = torch.tensor(label_list, dtype=torch.int64) 
+        offsets = torch.tensor(offsets[:-1]).cumsum(dim=0) 
+        text_list = torch.cat(text_list)
 
+        return label_list.to(device), text_list.to(device), offsets.to(device)
 
+    train_iter, test_iter = AG_NEWS() # train, test
+    train_dataset = to_map_style_dataset(train_iter)
+    test_dataset = to_map_style_dataset(test_iter)
 
-
-
-
-
-# ---------------------- Data Loader ---------------------- #
-def get_dataset(dataset, data_path, batch_size, world_size):
-    # Prepare dataset and dataloader
-    if dataset == 'MNIST':
-        transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-            ])
-
-        train_set = datasets.MNIST(data_path, train=True, download=True, transform=transform)
-        test_set = datasets.MNIST(data_path, train=False, download=True, transform=transform)
-
-    elif dataset == 'CIFAR10':
-        #  weight_decay = 5e-4
-        pin_memory=False
-
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
-        ])
-        transform_validation = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
-        ])
-        transform_test = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
-        ])
-        train_set = datasets.CIFAR10(data_path, train=True, download=False, transform=transform_train) 
-        valid_set = datasets.CIFAR10(data_path, train=True, download=False, transform=transform_validation)
-        test_set = datasets.CIFAR10(data_path, train=False, download=False, transform=transform_test)
+    train_size = int(len(train_dataset) * 0.9)
+    val_size = len(train_dataset) - train_size
+    train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
 
-        val_size = 5000 # 10% of training samples
-        train_size = len(train_set) - val_size
-        train_set, _ = random_split(train_set, [train_size, val_size])
-        _, valid_set = random_split(valid_set, [train_size, val_size])
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
+    valid_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
 
+    return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class
 
-    elif dataset == 'CIFAR100':
-        #  weight_decay = 5e-4
-
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
-            #  transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
-        transform_validation = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
-            #  transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
-
-        train_set = datasets.CIFAR100(data_path, train=True, download=False, transform=transform_train) 
-        valid_set = datasets.CIFAR100(data_path, train=True, download=False, transform=transform_validation)
-
-
-        val_size = 5000 # 10% of training samples
-        train_size = len(train_set) - val_size
-        train_set, _ = random_split(train_set, [train_size, val_size])
-        _, valid_set = random_split(valid_set, [train_size, val_size])
-
-    elif dataset == 'IMAGENET':
-        #  weight_decay = 1e-4
-        pin_memory=True
-
-        transform_train = transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        ])
-        transform_validation = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        ])
-        train_set = datasets.ImageFolder("/data/imageNet/raw-data/train", transform=transform_train) 
-        valid_set = datasets.ImageFolder("/data/imageNet/raw-data/validation", transform=transform_validation)
-
-
-    # Restricts data loading to a subset of the dataset exclusive to the current process
-    dist_sampler = DistributedSampler(dataset=train_set, num_replicas=world_size)
-
-    train_loader = DataLoader(dataset=train_set, batch_size=batch_size, sampler=dist_sampler, num_workers=4)
-    valid_loader = DataLoader(dataset=valid_set, batch_size=batch_size, shuffle=False, num_workers=4)
-
-    return train_loader, valid_loader
 
 
