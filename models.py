@@ -9,17 +9,18 @@ from torch.utils.data import dataset
 
 class KhanModel(nn.Module):
 
-    def __init__(self, vocab_size: int, embed_dim: int, num_class: int):
+    def __init__(self, vocab_size: int, embed_size: int, num_class: int):
         super(KhanModel, self).__init__()
         #  self.encoder = nn.Embedding(ntoken, d_model)
-        self.embedding = nn.EmbeddingBag(vocab_size, embed_dim, sparse=True) 
+        self.embedding = nn.EmbeddingBag(vocab_size, embed_size, sparse=True) 
         # (TODO) define our model here
         #  self.d_model = 
-        #  self.pos_encoder = PositionalEncoding(d_model, dropout)
+        #  self.position_encoder = PositionalEncoding(embed_size, dropout)
+        #  self.knowledge_encoder = KnowledgeEncoding()
         #  encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
         #  self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
 
-        self.fc = nn.Linear(embed_dim, num_class)
+        self.fc = nn.Linear(embed_size, num_class)
         self.init_weights()
 
     def init_weights(self) -> None:
@@ -69,3 +70,12 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class KnowledgeEncoding(nn.Module):
+
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)

@@ -57,7 +57,7 @@ def main():
 
     # models & datasets
     parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
-    parser.add_argument('--dataset', type=str, default='CIFAR10', help='Name of dataset.')
+    parser.add_argument('--dataset', type=str, default='AGNEWS', help='Name of dataset.')
     parser.add_argument('--data_path', type=str, default='/data', help='Data path.')
 
     parser.add_argument('--save_model', action='store_false', default=False, help='For Saving the current Model')
