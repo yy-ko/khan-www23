@@ -13,7 +13,7 @@ print('Device:', device)
 print('Current cuda device:', torch.cuda.current_device())
 print('Count of using GPUs:', torch.cuda.device_count())
 
-raw_data_path = '/home/yyko/workspace/political_pre/KG_construction/reddit_liberal_v2.csv'
+raw_data_path = '/home/yyko/workspace/political_pre/KG_construction/wiki_sentences.csv'
 destination_folder = '/home/yyko/workspace/political_pre/KG_construction'
 
 wiki_sen = pd.read_csv(raw_data_path)
