@@ -6,6 +6,7 @@ import os
 import torch
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize
+from tqdm import tqdm
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -13,12 +14,15 @@ print('Device:', device)
 print('Current cuda device:', torch.cuda.current_device())
 print('Count of using GPUs:', torch.cuda.device_count())
 
-raw_data_path = '/home/yyko/workspace/political_pre/KG_construction/reddit_liberal_v2.csv'
+# liberal: 18만 data
+# Conservative: 18만 data
+raw_data_path = '/home/yyko/workspace/political_pre/KG_construction/reddit_conservative_v3.csv'
 destination_folder = '/home/yyko/workspace/political_pre/KG_construction'
 
-reddit_df = pd.read_csv(raw_data_path,encoding='UTF-8')
+reddit_df = pd.read_csv(raw_data_path, encoding='utf-8')
 reddit_df = reddit_df[['body']]
-reddit_df = reddit_df.iloc[:500,]
+
+# reddit_df = reddit_df.iloc[120000:,]
 sentences=reddit_df['body'].astype(str).apply(sent_tokenize)
 
 # sentence split from text
@@ -28,6 +32,8 @@ for i in range(len(sentences)):
 reddit_sen = pd.DataFrame(all)
 
 reddit_sen.columns = ['sentence']
+
+print("============================= Sentence Length ==============================")
 print(len(reddit_sen))
 
 # # stopwords preprocessing
@@ -46,11 +52,16 @@ print(len(reddit_sen))
 # reddit_sen['sentence'] = reddit_sen['sentence'].astype(str).apply(trim_string)
 # reddit_sen['sentence'] = reddit_sen['sentence'].str.replace(pat=r'[^\w]', repl=r' ', regex=True)
 
-
 print("=============================== Reddit Data ================================")
 print(reddit_sen.head(10))
 print('')
 
+# StanfordCoreNLPServer connection (start server)
+# cd stanford-corenlp-4.4.0                                                                                
+# java -mx5g -cp "*" edu.stanford.nlp.pipeline.StanfordCoreNLPServer -timeout 10000
+
+# Shutdown (end server)
+# wget "localhost:9000/shutdown?key=`cat /tmp/corenlp.shutdown`" -O -
 dep_parser = CoreNLPDependencyParser(url='http://localhost:9000')
 pos_tagger = CoreNLPParser(url='http://localhost:9000', tagtype='pos')
 
@@ -64,7 +75,7 @@ def triplet_extraction (input_sent, output=[
     # Parse the input sentence with Stanford CoreNLP Parser
     # pos_type = pos_tagger.tag(input_sent.split())
     parse_tree, = ParentedTree.convert(list(pos_tagger.parse(input_sent.split()))[0])
-    # dep_type, = ParentedTree.convert(dep_parser.parse(input_sent.split()))
+    dep_type, = ParentedTree.convert(dep_parser.parse(input_sent.split()))
     # Extract subject, predicate and object
     subject = extract_subject(parse_tree)
     predicate = extract_predicate(parse_tree)
@@ -159,11 +170,19 @@ triplet_extraction('A rare black squirrel has become a regular visitor to a subu
 print('')
 
 print("========================= Reddit Triplet Extraction ========================")
-
-sentence_triplet = [triplet_extraction(sen) for sen in reddit_sen.sentence.values.tolist()]
+ 
+try:
+    for sen in tqdm(reddit_sen.sentence.values.tolist()):
+        try:
+            triplet_extraction(sen).device()
+        except:
+            print("============================ignored the exception============================")
+            pass
+except Exception:
+    pass
 
 df_triplet = pd.DataFrame(triplet_result)
 df_triplet.columns = ['triplet']
-df_triplet.to_csv(destination_folder + "/Reddit_result.csv", index=False, encoding='utf-8-sig')
+df_triplet.to_csv(destination_folder + "/Reddit_result_conservative_3.csv", index=False, encoding='utf-8-sig')
 
 print(df_triplet.head(10))
