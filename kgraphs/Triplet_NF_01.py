@@ -1,3 +1,4 @@
+# Triplet noise filtering 01
 import pandas as pd
 
 path = '/home/yyko/workspace/political_pre/KG_construction/Reddit_result_conservative.csv'
