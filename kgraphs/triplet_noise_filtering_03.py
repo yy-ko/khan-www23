@@ -51,6 +51,12 @@ for sen in tqdm(reddit_df.filtered.values.tolist()):
     triplet = nlp(sen)
     for x in triplet.ents:
         if x.label_ == 'PERSON' or x.label_ == 'ORG' or x.label_ == 'NORP' or x.label_ == 'EVENT' or x.label_ == 'GPE' or x.label_ == 'LOC':
+            # PERSON (person name)
+            # ORG (organization name)
+            # NORP (affiliation)
+            # EVENT (event name)
+            # GPE (geo-political entity)
+            # LOC (location name)
             print(sen)
             filtered_list.append(sen)
 
