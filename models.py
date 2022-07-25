@@ -7,7 +7,7 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torch.utils.data import dataset
 
 
-class KhanModel(nn.Module):
+class KHANModel(nn.Module):
 
     def __init__(self, vocab_size: int, embed_size: int, num_class: int):
         super(KhanModel, self).__init__()
