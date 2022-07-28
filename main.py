@@ -6,18 +6,22 @@ import numpy as np
 import time
 import logging
 import warnings
+from tqdm import tqdm
 
 import math
 from typing import Tuple
 
 import torch
 from torch import nn, Tensor
-from torch import optim 
-#  import torch.distributed as dist
+from torch import optim
+
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 from torch.optim.lr_scheduler import StepLR
 
 import dataloaders, models
-from models import KhanModel
+from models import KHANModel
 
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", FutureWarning)
@@ -51,9 +55,10 @@ def main():
     parser = argparse.ArgumentParser(description='Parsing parameters')
 
     # for multi-gpu
-    #  parser.add_argument("--num_workers", type=int, default=1, help="The number of workers per node.")
+    #  parser.add_argument("--num_gpus", type=int, default=1, help="The number of GPUs.")
     #  parser.add_argument("--backend", type=str, default='nccl', help="Backend for Distributed PyTorch: nccl, gloo, mpi")
     #  parser.add_argument("--local_rank", type=int, help="Local rank. Necessary for using the torch.distributed.launch utility.")
+    parser.add_argument("--gpu_index", type=int, help="GPU index. Necessary for specifying the CUDA device.")
 
     # models & datasets
     parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
@@ -73,11 +78,9 @@ def main():
 
     args = parser.parse_args()
 
-    #  dist.init_process_group(backend=args.backend)
+    #  dist.init_process_group(backend='nccl')
     #  world_size = dist.get_world_size()
-    #  local_rank = args.local_rank
-    #  global_rank = dist.get_rank()
-
+    #  rank = dist.get_rank()
 
     # Set random seeds for reproducibility
     set_random_seeds(args.seed)
@@ -92,19 +95,22 @@ def main():
     print('  - NUM EPOCHS = ' + str(args.num_epochs))
     print('  - LEARNING RATE = ' + str(args.learning_rate))
     # add more if needed
-
+    print('==============================================================================')
 
 
     # ------------------------------------------------------------------------#
     # ---------------------------- Training Setup ----------------------------#
     # ------------------------------------------------------------------------#
     # Get the dataloaders and model
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    #  device = torch.device("cuda:{}".format(local_rank))
+    print('Device:', device)
+    print('Current cuda device:', torch.cuda.current_device())
+    print('Count of using GPUs:', torch.cuda.device_count())
+    # device = torch.device("cuda:{}".format(args.gpu_index))
 
     train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, device)
-
-    model = KhanModel(vocab_size, args.embed_size, num_class)
+    model = KHANModel(vocab_size, args.embed_size, num_class)
     model = model.to(device) # model to GPU
 
     criterion = nn.CrossEntropyLoss() # loss function
@@ -124,7 +130,7 @@ def main():
     max_accuracy = 0
     num_batches = 0
 
-    for epoch in range(args.num_epochs): 
+    for epoch in tqdm(range(args.num_epochs)): 
         epoch_start_time = time.time() 
         model.train()  # turn on train mode 
         train_correct, train_count = 0, 0 
@@ -170,8 +176,7 @@ def main():
         if args.save_model:
             torch.save(model.state_dict(), args.model_dir)
 
-    # (TODO) Measure the final est accuracy
-
+    # (TODO) Measure the final test accuracy
     # ----------------------------------------------------------------------------#
     # ----------------------------- End of Training ------------------------------#
     # ----------------------------------------------------------------------------#
@@ -185,6 +190,3 @@ def main():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     main()
-
-
-
