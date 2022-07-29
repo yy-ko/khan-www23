@@ -7,12 +7,25 @@ from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.functional import to_map_style_dataset
 from torchtext.legacy import data
+# from torchtext.legacy.data import TabularDataset
+# from torchtext.legacy.data import Iterator
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
 def yield_tokens(data_iter, tokenizer):
     for _, text in data_iter:
+        yield tokenizer(str(text))
+
+def yield_tokens_2(data_iter, tokenizer):
+    for batch in data_iter:
+        print(batch.text)
+        yield tokenizer(str(batch.text))
+
+def yield_tokens_r(df, tokenizer):
+    for i, row in df.iterrows():
+        label = row.label
+        text = row.text
         yield tokenizer(str(text))
 
 def preprocess_text (text):
@@ -55,9 +68,7 @@ def get_dataloaders(dataset, data_path, batch_size, device):
 
     if dataset == 'AGNEWS': # tutorial
         train_iter = AG_NEWS(split='train')
-        # print(train_iter)
         num_class = len(set([label for (label, text) in train_iter]))
-        # print(num_class)
         
         tokenizer = get_tokenizer('basic_english')
         vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>'])
@@ -76,6 +87,7 @@ def get_dataloaders(dataset, data_path, batch_size, device):
                 offsets.append(processed_text.size(0))
             # print(label_list)
             # print(text_list)
+            # print(offsets)
             label_list = torch.tensor(label_list, dtype=torch.int64)
             offsets = torch.tensor(offsets[:-1]).cumsum(dim=0) 
             text_list = torch.cat(text_list)
@@ -92,89 +104,64 @@ def get_dataloaders(dataset, data_path, batch_size, device):
         val_size = len(train_dataset) - train_size
         train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
-
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
         valid_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
         test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
 
         return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class
-
     
     elif dataset =='ALLSIDES':
-        # num_class = 5
-        num_class = 3
+        num_class = 5
         tokenizer = get_tokenizer('basic_english')
-        
-        data_path = 'dataset/news_dataset_r.csv'
-        
+        data_path = 'dataset/khan_dataset.csv'
         dataset = pd.read_csv(data_path)
-        # dataset = dataset.reindex(columns = ['label', 'text'])
         dataset["text"]= preprocess_text(dataset["text"].astype(str))
         dataset = dataset[['text','label']]
         print(dataset.head())
         
-        # To define field format
-        TEXT = data.Field(sequential=True, batch_first=True, lower=True)
-        LABEL = data.Field(sequential=False, batch_first=True)
-
-        fields = [('text',TEXT), ('label',LABEL)]
-
-        # To split the dataset
-        train_df, test_df = train_test_split(dataset)
-        trainset, testset = DataFrameDataset.splits(fields, train_df=train_df, test_df=test_df)
-        print('train data len : {}'.format(len(trainset)))
-        print('test data len : {}'.format(len(testset)))
-        # print(vars(trainset[0]))
+        train_df, test_df = train_test_split(dataset, train_size=0.9)
+        # print(train_df.values)
+        # print(test_df.head())
+        v_train = train_df.values
+        train_iter = list(map(lambda x: (x.tolist()[1], x.tolist()[0]), v_train))
+        v_test = test_df.values
+        test_iter = list(map(lambda x: (x.tolist()[1], x.tolist()[0]), v_test))        
         
-        MAX_VOCAB_SIZE = 25000
-        # To create vocabulary
-        TEXT.build_vocab(trainset, max_size = MAX_VOCAB_SIZE, min_freq = 10)
-        # TEXT.build_vocab(trainset, max_size = MAX_VOCAB_SIZE, 
-        #                 vectors = 'glove.6B.200d',
-        #                 unk_init = torch.Tensor.zero_)
-        LABEL.build_vocab(trainset)
-        
-        train_iter, test_iter = data.BucketIterator.splits((trainset, testset), batch_size=batch_size)
-
-        # train_iter = OUR_DATASET(split='train') # (TODO: to be implemented)
-
         vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>'])
         vocab.set_default_index(vocab['<unk>'])
 
-        def my_collate_batch(batch): # split a label and text in each row
-            
-            text_pipeline = lambda x: vocab(tokenizer(str(x)))
-            label_pipeline = lambda x: int(x) - 1
-            label_list, text_list, offsets = [], [], [0] 
-            for (text, label) in batch:
-                _text = text[0]
-                _label = text[1]
-                # print(_text[0])
-                # print(_label[0])
-                for i in _label:
-                    label_list.append(label_pipeline(i))
-                for j in _text:
-                    processed_text = torch.tensor(text_pipeline(j), dtype=torch.int64) 
-                    text_list.append(processed_text)
-                    offsets.append(processed_text.size(0))
+        def collate_batch(batch): # split a label and text in each row
+            text_pipeline = lambda x: vocab(tokenizer(x))
+            label_pipeline = lambda x: int(x)
 
-            label_list = torch.tensor(label_list, dtype=torch.int64) 
+            label_list, text_list, offsets = [], [], [0] 
+            for (_label, _text) in batch:
+                # print(_text, _label)
+                label_list.append(label_pipeline(_label))
+                processed_text = torch.tensor(text_pipeline(_text), dtype=torch.int64) 
+                text_list.append(processed_text)
+                offsets.append(processed_text.size(0))
+            # print(label_list)
+            # print(text_list)
+            # print(offsets)
+            label_list = torch.tensor(label_list, dtype=torch.int64)
             offsets = torch.tensor(offsets[:-1]).cumsum(dim=0) 
             text_list = torch.cat(text_list)
 
             return label_list.to(device), text_list.to(device), offsets.to(device)
-
-        # train_iter, test_iter = OUR_DATASET() # train, test
+        
         train_dataset = to_map_style_dataset(train_iter)
         test_dataset = to_map_style_dataset(test_iter)
+        print('train data len : {}'.format(len(train_dataset)))
+        print('test data len : {}'.format(len(test_dataset)))
 
-        train_size = int(len(train_dataset) * 0.9) # 90:10 train:validation
+        train_size = int(len(train_dataset) * 0.9)
         val_size = len(train_dataset) - train_size
         train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=my_collate_batch)
-        valid_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_batch)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=my_collate_batch)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
+        valid_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
+        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
 
         return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class
     
