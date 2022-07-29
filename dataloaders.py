@@ -8,21 +8,50 @@ from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.functional import to_map_style_dataset
 
 
+from collections import Counter, OrderedDict
+from typing import Iterable
 
 def yield_tokens(data_iter, tokenizer):
     for _, text in data_iter:
         yield tokenizer(text)
+
+def build_knowledge_index_from_iterator(iterator: Iterable):
+    """
+    Build knowledge index from an iterator.
+
+    Args:
+        iterator:
+
+    Returns:
+    """
+    counter = Counter()
+    for tokens in iterator: 
+        counter.update(tokens)
+
+    #  specials = specials or []
+
+    # First sort by descending frequency, then lexicographically
+    sorted_by_freq_tuples = sorted(counter.items(), key=lambda x: (-x[1], x[0])) 
+    #  if max_tokens is None:
+    ordered_dict = OrderedDict(sorted_by_freq_tuples)
+
+    print (ordered_dict)
+
+    return None
 
 def get_dataloaders(dataset, data_path, batch_size, max_len, device):
 
     if dataset == 'AGNEWS': # tutorial
         num_class = 4
         train_iter = AG_NEWS(split='train')
-        #  num_class = len(set([label for (label, text) in train_iter]))
 
         tokenizer = get_tokenizer('basic_english')
         vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>'])
         vocab.set_default_index(vocab['<unk>'])
+
+        train_iter = AG_NEWS(split='train')
+        knowledge = build_knowledge_index_from_iterator(yield_tokens(train_iter, tokenizer))
+
 
         def collate_batch(batch): # split a label and text in each row
             text_pipeline = lambda x: vocab(tokenizer(x))

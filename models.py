@@ -38,9 +38,17 @@ class KHANModel(nn.Module):
             output: Tensor, shape[]
         """
 
-        # word-level self-attention layers
+        # position and knowledge encoding in word-level embeddings
         word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
-        word_embeddings = self.pos_encoder(word_embeddings)
+        emb_with_pos = self.pos_encoder(word_embeddings)
+        emb_with_cknwlg = self.cknowledge_encoder(emb_with_pos)
+
+        # (TODO) domain-specific knowledge encoding
+        #  emb_with_dem = self.democratic_knowledge_encoder(emb_with_cknwlg)
+        #  emb_with_rep = self.republican_cknowledge_encoder(emb_with_cknwlg)
+        # concate and pass a FC layer
+
+        # word-level self-attention layers
         word_embeddings = self.transformer_encoder(word_embeddings)
 
         # (TODO) setentence-level self-attention layers + title-attention
