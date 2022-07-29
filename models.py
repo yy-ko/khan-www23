@@ -7,12 +7,13 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torch.utils.data import dataset
 
 
-class KhanModel(nn.Module):
+class KHANModel(nn.Module):
 
     def __init__(self, vocab_size: int, embed_size: int, num_class: int):
-        super(KhanModel, self).__init__()
+        super(KHANModel, self).__init__()
         #  self.encoder = nn.Embedding(ntoken, d_model)
-        self.embedding = nn.EmbeddingBag(vocab_size, embed_size, sparse=True) 
+        self.embeddings = nn.EmbeddingBag(vocab_size, embed_size, sparse=True)
+        self.embed_size = embed_size
         # (TODO) define our model here
         #  self.d_model = 
         #  self.position_encoder = PositionalEncoding(embed_size, dropout)
@@ -25,11 +26,12 @@ class KhanModel(nn.Module):
 
     def init_weights(self) -> None:
         initrange = 0.5
-        self.embedding.weight.data.uniform_(-initrange, initrange)
+        self.embeddings.weight.data.uniform_(-initrange, initrange)
         self.fc.weight.data.uniform_(-initrange, initrange)
         self.fc.bias.data.zero_()
 
-    def forward(self, text: Tensor, offsets: Tensor) -> Tensor:
+    # def forward(self, text: Tensor, offsets: Tensor) -> Tensor:
+    def forward(self, texts: Tensor) -> Tensor:
     #  def forward(self, src: Tensor, src_mask: Tensor) -> Tensor:
         """
         Args:
@@ -39,7 +41,7 @@ class KhanModel(nn.Module):
         Returns:
             output: Tensor of shape [seq_len, batch_size, ntoken]
         """
-        word_embeddings = self.embedding(text, offsets)
+        word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
         output = self.fc(word_embeddings)
 
         #  word_embeddings = self.pos_encoder(src)
