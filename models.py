@@ -9,42 +9,44 @@ from torch.utils.data import dataset
 
 class KHANModel(nn.Module):
 
-    def __init__(self, vocab_size: int, embed_size: int, num_class: int):
-        super(KhanModel, self).__init__()
-        #  self.encoder = nn.Embedding(ntoken, d_model)
-        self.embedding = nn.EmbeddingBag(vocab_size, embed_size, sparse=True) 
-        # (TODO) define our model here
-        #  self.d_model = 
-        #  self.position_encoder = PositionalEncoding(embed_size, dropout)
+    def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int):
+        super(KHANModel, self).__init__()
+        self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
+        self.embed_size = embed_size
+
         #  self.knowledge_encoder = KnowledgeEncoding()
-        #  encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
-        #  self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
+        self.pos_encoder = PositionalEncoding(embed_size, dropout)
+        encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
 
         self.fc = nn.Linear(embed_size, num_class)
         self.init_weights()
 
     def init_weights(self) -> None:
         initrange = 0.5
-        self.embedding.weight.data.uniform_(-initrange, initrange)
+        self.embeddings.weight.data.uniform_(-initrange, initrange)
         self.fc.weight.data.uniform_(-initrange, initrange)
         self.fc.bias.data.zero_()
 
-    def forward(self, text: Tensor, offsets: Tensor) -> Tensor:
-    #  def forward(self, src: Tensor, src_mask: Tensor) -> Tensor:
+    #  def forward(self, texts: Tensor, offsets: Tensor) -> Tensor:
+    def forward(self, texts: Tensor) -> Tensor:
         """
         Args:
-            text: Tensor, shape [?, batch_size]
-            offsets: Tensor, shape [?, ?]
+            texts: Tensor, shape [batch_size, seq_len]
 
         Returns:
-            output: Tensor of shape [seq_len, batch_size, ntoken]
+            output: Tensor, shape[]
         """
-        word_embeddings = self.embedding(text, offsets)
-        output = self.fc(word_embeddings)
 
-        #  word_embeddings = self.pos_encoder(src)
-        #  output = self.transformer_encoder(src, src_mask)
-        #  output = self.decoder(output)
+        # word-level self-attention layers
+        word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
+        word_embeddings = self.pos_encoder(word_embeddings)
+        word_embeddings = self.transformer_encoder(word_embeddings)
+
+        # (TODO) setentence-level self-attention layers + title-attention
+        word_embeddings = word_embeddings.mean(dim=1)
+
+        output = self.fc(word_embeddings)
         return output
 
 

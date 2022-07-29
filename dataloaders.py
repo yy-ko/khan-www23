@@ -13,11 +13,12 @@ def yield_tokens(data_iter, tokenizer):
     for _, text in data_iter:
         yield tokenizer(text)
 
-def get_dataloaders(dataset, data_path, batch_size, device):
+def get_dataloaders(dataset, data_path, batch_size, max_len, device):
 
     if dataset == 'AGNEWS': # tutorial
+        num_class = 4
         train_iter = AG_NEWS(split='train')
-        num_class = len(set([label for (label, text) in train_iter]))
+        #  num_class = len(set([label for (label, text) in train_iter]))
 
         tokenizer = get_tokenizer('basic_english')
         vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>'])
@@ -27,18 +28,29 @@ def get_dataloaders(dataset, data_path, batch_size, device):
             text_pipeline = lambda x: vocab(tokenizer(x))
             label_pipeline = lambda x: int(x) - 1
 
-            label_list, text_list, offsets = [], [], [0] 
+            label_list, text_list = [], []
             for (_label, _text) in batch: 
                 label_list.append(label_pipeline(_label))
-                processed_text = torch.tensor(text_pipeline(_text), dtype=torch.int64) 
-                text_list.append(processed_text) 
-                offsets.append(processed_text.size(0)) 
+
+                text_indices = text_pipeline(_text)
+                # pad/trucate each article embedding according to maximum article length
+                text_size = len(text_indices) 
+                if text_size < max_len:
+                    padding_size = max_len - text_size
+                    for _ in range(padding_size):
+                        text_indices.append(vocab['unk'])
+                elif text_size > max_len:
+                    text_indices = text_indices[:max_len]
+                else:
+                    pass
+
+                text_list.append(text_indices) 
 
             label_list = torch.tensor(label_list, dtype=torch.int64) 
-            offsets = torch.tensor(offsets[:-1]).cumsum(dim=0) 
-            text_list = torch.cat(text_list)
+            text_list = torch.tensor(text_list, dtype=torch.int64)
 
-            return label_list.to(device), text_list.to(device), offsets.to(device)
+            return label_list.to(device), text_list.to(device)
+            #  return label_list.to(device), text_list.to(device), offsets.to(device)
 
         train_iter, test_iter = AG_NEWS() # train, test
         train_dataset = to_map_style_dataset(train_iter)
