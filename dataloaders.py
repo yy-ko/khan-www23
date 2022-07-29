@@ -6,9 +6,6 @@ from torchtext.datasets import AG_NEWS
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.functional import to_map_style_dataset
-from torchtext.legacy import data
-# from torchtext.legacy.data import TabularDataset
-# from torchtext.legacy.data import Iterator
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -31,33 +28,6 @@ def preprocess_text (text):
     text = text.str.replace(r"[^A-Za-z0-9()!?\'\`\"]", " ")
     text = text.str.replace("\s{2,}", " ")
     return text
-
-class DataFrameDataset(data.Dataset):
-    def __init__(self, df, fields, is_test=False, **kwargs):
-        examples = []
-        for i, row in df.iterrows():
-            label = row.label 
-            text = row.text
-            examples.append(data.Example.fromlist([text, label], fields))
-        super().__init__(examples, fields, **kwargs)
-
-    @staticmethod
-    def sort_key(ex):
-        return len(ex.text)
-
-    @classmethod
-    def splits(cls, fields, train_df, val_df=None, test_df=None, **kwargs):
-        train_data, val_data, test_data = (None, None, None)
-        data_field = fields
-
-        if train_df is not None:
-            train_data = cls(train_df.copy(), data_field, **kwargs)
-        if val_df is not None:
-            val_data = cls(val_df.copy(), data_field, **kwargs)
-        if test_df is not None:
-            test_data = cls(test_df.copy(), data_field, True, **kwargs)
-
-        return tuple(d for d in (train_data, val_data, test_data) if d is not None)
 
 def get_dataloaders(dataset, data_path, batch_size, max_len, device):
 
@@ -90,9 +60,6 @@ def get_dataloaders(dataset, data_path, batch_size, max_len, device):
                     pass
 
                 text_list.append(text_indices) 
-
-            # print(label_list)
-            # print(text_list)
             label_list = torch.tensor(label_list, dtype=torch.int64) 
             text_list = torch.tensor(text_list, dtype=torch.int64)
                         
@@ -118,8 +85,8 @@ def get_dataloaders(dataset, data_path, batch_size, max_len, device):
     elif dataset =='ALLSIDES':
         num_class = 5
         tokenizer = get_tokenizer('basic_english')
-        # data_path = 'data/khan_dataset.csv'
-        data_path = 'data/news_dataset_test.csv'
+        data_path = 'data/khan_dataset.csv'
+        # data_path = 'data/news_dataset_test.csv'
         dataset = pd.read_csv(data_path)
         dataset["text"]= preprocess_text(dataset["text"].astype(str))
         dataset = dataset[['text','label']]
@@ -217,9 +184,6 @@ def get_dataloaders(dataset, data_path, batch_size, max_len, device):
                     pass
 
                 text_list.append(text_indices) 
-
-            # print(label_list)
-            # print(text_list)
             label_list = torch.tensor(label_list, dtype=torch.int64) 
             text_list = torch.tensor(text_list, dtype=torch.int64)
                         
@@ -284,7 +248,6 @@ def get_dataloaders(dataset, data_path, batch_size, max_len, device):
                     pass
 
                 text_list.append(text_indices) 
-
             # print(label_list)
             # print(text_list)
             label_list = torch.tensor(label_list, dtype=torch.int64) 
