@@ -13,7 +13,6 @@ class KHANModel(nn.Module):
         super(KHANModel, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.embed_size = embed_size
-
         #  self.knowledge_encoder = KnowledgeEncoding()
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
         encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout)

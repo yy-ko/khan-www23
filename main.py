@@ -6,6 +6,7 @@ import numpy as np
 import time
 import logging
 import warnings
+from tqdm import tqdm
 
 import math
 from typing import Tuple
@@ -71,8 +72,8 @@ def main():
     # user-defined hyperparameters
     parser.add_argument("--num_epochs", type=int, default=100, help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=64, help="Training batch size.")
-    parser.add_argument("--eval_batch_size", type=int, default=100, help="Evaluation and test batch size.")
-    parser.add_argument("--learning_rate", type=float, default=0.1, help="Learning rate.")
+    parser.add_argument("--eval_batch_size", type=int, default=16, help="Evaluation and test batch size.")
+    parser.add_argument("--learning_rate", type=float, default=5, help="Learning rate.")
     parser.add_argument("--embed_size", type=int, default=64, help="Word/Sentennce Embedding size.")
     parser.add_argument('--seed', type=int, default=1, metavar='S', help='Random seed (default: 1)') # for reproducibility
 
@@ -95,7 +96,7 @@ def main():
     print('  - NUM EPOCHS = ' + str(args.num_epochs))
     print('  - LEARNING RATE = ' + str(args.learning_rate))
     # add more if needed
-
+    print('==============================================================================')
 
 
     # ------------------------------------------------------------------------#
@@ -103,7 +104,7 @@ def main():
     # ------------------------------------------------------------------------#
     # Get the dataloaders and model
     #  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device("cuda:{}".format(args.gpu_index))
+    device = torch.device("cuda:{}".format(args.gpu_index)) 
 
     nhead = 4 # 8
     d_hid = 512 # 2048
@@ -130,7 +131,7 @@ def main():
     max_accuracy = 0
     num_batches = 0
 
-    for epoch in range(args.num_epochs): 
+    for epoch in tqdm(range(args.num_epochs)): 
         epoch_start_time = time.time() 
         model.train()  # turn on train mode 
         train_correct, train_count = 0, 0 
@@ -138,13 +139,9 @@ def main():
         total_loss = 0.
 
         # ------------------------ Epoch Start ------------------------ #
-        #  for idx, (labels, texts, offsets) in enumerate(train_data):
         for idx, (labels, texts) in enumerate(train_data):
-            #  print (labels)
-            #  print (texts)
             optimizer.zero_grad()
             predicted_labels = model(texts)
-            #  predicted_labels = model(texts, offsets)
             loss = criterion(predicted_labels, labels)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
@@ -194,6 +191,3 @@ def main():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     main()
-
-
-
