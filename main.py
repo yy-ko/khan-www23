@@ -15,8 +15,8 @@ import torch
 from torch import nn, Tensor
 from torch import optim
 
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
+#  import torch.distributed as dist
+#  from torch.nn.parallel import DistributedDataParallel as DDP
 
 from torch.optim.lr_scheduler import StepLR
 
@@ -62,9 +62,9 @@ def main():
 
     # models & datasets
     parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
-    parser.add_argument('--dataset', type=str, default='AGNEWS', help='Name of dataset.')
+    parser.add_argument('--dataset', type=str, default='SEMEVAL', help='Name of dataset.')
     parser.add_argument('--max_len', type=int, default=50, help='Maximum length of each document.')
-    parser.add_argument('--data_path', type=str, default='/data', help='Data path.')
+    parser.add_argument('--data_path', type=str, default='./data', help='Data path.')
 
     parser.add_argument('--save_model', action='store_false', default=False, help='For Saving the current Model')
     parser.add_argument('--model_dir', type=str, default='../trained_models', help='Path for saving the trained model')
@@ -95,8 +95,9 @@ def main():
     print('  - EVAL/TEST BATCH SIZE = ' + str(args.eval_batch_size))
     print('  - NUM EPOCHS = ' + str(args.num_epochs))
     print('  - LEARNING RATE = ' + str(args.learning_rate))
+    print('   ')
     # add more if needed
-    print('==============================================================================')
+    #  print('==============================================================================')
 
 
     # ------------------------------------------------------------------------#
@@ -109,8 +110,9 @@ def main():
     nhead = 4 # 8
     d_hid = 512 # 2048
     dropout = 0.1 # 0.1
-    nlayers = 3 # 
-    train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.max_len, device)
+    nlayers = 4 # 
+    train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_len, device)
+
     model = KHANModel(vocab_size, args.embed_size, nhead, d_hid, nlayers, dropout, num_class)
     model = model.to(device) # model to GPU
 
@@ -119,12 +121,13 @@ def main():
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1) # learning rate scheduling
 
 
-
     # ----------------------------------------------------------------------------#
     # ---------------------------- Main Training Loop ----------------------------#
     # ----------------------------------------------------------------------------#
     print('')
     print('=============================== Training Start ===============================')
+
+
 
     start_time = time.time()
     total_start_time = start_time
@@ -159,7 +162,8 @@ def main():
         # ----- at the end of every epoch, evaluating the current model a ccuracy ------ #
         # ------------------------------------------------------------------------------ #
         train_accuracy = train_correct / train_count
-        val_accuracy = evaluate(model, device, val_data)
+        val_accuracy = evaluate(model, device, test_data)
+        #  val_accuracy = evaluate(model, device, val_data)
 
         print('Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f}'.format(
             (epoch+1),
