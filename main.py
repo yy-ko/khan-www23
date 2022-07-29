@@ -43,10 +43,10 @@ def evaluate(model, device, dataloader) -> float:
     total_count = 0
 
     with torch.no_grad():
-        for idx, (label, text, offsets) in enumerate(dataloader):
-            predicted_label = model(text, offsets)
-            total_acc += (predicted_label.argmax(1) == label).sum().item()
-            total_count += label.size(0)
+        for idx, (labels, texts) in enumerate(dataloader):
+            predicted_label = model(texts)
+            total_acc += (predicted_label.argmax(1) == labels).sum().item()
+            total_count += labels.size(0)
     return total_acc/total_count
 
 
@@ -63,6 +63,7 @@ def main():
     # models & datasets
     parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
     parser.add_argument('--dataset', type=str, default='AGNEWS', help='Name of dataset.')
+    parser.add_argument('--max_len', type=int, default=50, help='Maximum length of each document.')
     parser.add_argument('--data_path', type=str, default='/data', help='Data path.')
 
     parser.add_argument('--save_model', action='store_false', default=False, help='For Saving the current Model')
@@ -71,8 +72,8 @@ def main():
     # user-defined hyperparameters
     parser.add_argument("--num_epochs", type=int, default=100, help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=64, help="Training batch size.")
-    parser.add_argument("--eval_batch_size", type=int, default=100, help="Evaluation and test batch size.")
-    parser.add_argument("--learning_rate", type=float, default=0.1, help="Learning rate.")
+    parser.add_argument("--eval_batch_size", type=int, default=16, help="Evaluation and test batch size.")
+    parser.add_argument("--learning_rate", type=float, default=5, help="Learning rate.")
     parser.add_argument("--embed_size", type=int, default=64, help="Word/Sentennce Embedding size.")
     parser.add_argument('--seed', type=int, default=1, metavar='S', help='Random seed (default: 1)') # for reproducibility
 
@@ -109,7 +110,7 @@ def main():
     print('Count of using GPUs:', torch.cuda.device_count())
     # device = torch.device("cuda:{}".format(args.gpu_index))
 
-    train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, device)
+    train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.max_len, device)
     model = KHANModel(vocab_size, args.embed_size, num_class)
     model = model.to(device) # model to GPU
 
@@ -138,16 +139,16 @@ def main():
         total_loss = 0.
 
         # ------------------------ Epoch Start ------------------------ #
-        for idx, (label, text, offsets) in enumerate(train_data):
+        for idx, (labels, texts) in enumerate(train_data):
             optimizer.zero_grad()
-            predicted_label = model(text, offsets)
-            loss = criterion(predicted_label, label)
+            predicted_labels = model(texts)
+            loss = criterion(predicted_labels, labels)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
             optimizer.step()
 
-            train_correct += (predicted_label.argmax(1) == label).sum().item()
-            train_count += label.size(0) 
+            train_correct += (predicted_labels.argmax(1) == labels).sum().item()
+            train_count += labels.size(0) 
             total_loss += loss.item()
 
         scheduler.step()
