@@ -111,9 +111,9 @@ def main():
     d_hid = 512 # 2048
     dropout = 0.1 # 0.1
     nlayers = 4 # 
-    train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_len, device)
-
-    model = KHANModel(vocab_size, args.embed_size, nhead, d_hid, nlayers, dropout, num_class)
+    train_data, val_data, test_data, vocab_size, num_class, test_list = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_len, device)
+    
+    model = KHANModel(vocab_size, args.embed_size, nhead, d_hid, nlayers, dropout, num_class, test_list)
     model = model.to(device) # model to GPU
 
     criterion = nn.CrossEntropyLoss() # loss function

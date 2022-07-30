@@ -88,7 +88,6 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     entity_list = ['boy', 'girl', 'i']
     existing_knowledge_indices = vocab.lookup_indices(entity_list)
 
-
     def collate_batch(batch): # split a label and text in each row
         text_pipeline = lambda x: vocab(tokenizer(x))
         label_pipeline = lambda x: int(x)
@@ -136,7 +135,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     valid_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
 
-    return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class
+    return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class, existing_knowledge_indices
 
 
 

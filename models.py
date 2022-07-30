@@ -1,5 +1,5 @@
 import math
-
+import numpy as np
 import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
@@ -9,13 +9,39 @@ from torch.utils.data import dataset
 
 class KHANModel(nn.Module):
 
-    def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int):
+    def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int, existing_knowledge_indices):
         super(KHANModel, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.embed_size = embed_size
-
-        self.knowledge_encoder = KnowledgeEncoding(embed_size)
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
+
+        common_knowledge = []
+        rep_knowledge = []
+        demo_knowledge = []
+        for idx in range(vocab_size):
+            if idx in existing_knowledge_indices:
+                # (TODO) replace this with actual embeddings
+                common_knowledge.append(np.zeros(embed_size))
+            else:
+                common_knowledge.append(np.zeros(embed_size))
+
+            if idx in existing_knowledge_indices:
+                # (TODO) replace this with actual embeddings
+                rep_knowledge.append(np.zeros(embed_size))
+            else:
+                rep_knowledge.append(np.zeros(embed_size))
+
+            if idx in existing_knowledge_indices:
+                # (TODO) replace this with actual embeddings
+                demo_knowledge.append(np.zeros(embed_size))
+            else:
+                demo_knowledge.append(np.zeros(embed_size))
+
+        self.common_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(common_knowledge))
+        self.demo_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(rep_knowledge))
+        self.rep_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(demo_knowledge))
+
+        self.fuse_knowledge_fc = nn.Linear(embed_size*2, embed_size)
 
         encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
@@ -26,6 +52,8 @@ class KHANModel(nn.Module):
     def init_weights(self) -> None:
         initrange = 0.5
         self.embeddings.weight.data.uniform_(-initrange, initrange)
+        self.fuse_knowledge_fc.weight.data.uniform_(-initrange, initrange)
+        self.fuse_knowledge_fc.bias.data.zero_()
         self.fc.weight.data.uniform_(-initrange, initrange)
         self.fc.bias.data.zero_()
 
@@ -41,19 +69,21 @@ class KHANModel(nn.Module):
         # word embeddings with position encoding
         word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
         emb_with_pos = self.pos_encoder(word_embeddings)
+        #  print (emb_with_pos.size())
 
-        #  emb_with_knwlg = self.knowledge_encoder(emb_with_pos)
+        emb_with_ckwldg = emb_with_pos + self.common_knowledge(texts)
+        #  print (emb_with_ckwldg.size())
 
-        # position and knowledge encoding in word-level embeddings
-        #  emb_with_cknwlg = self.cknowledge_encoder(emb_with_pos)
+        demo_knwldg = emb_with_ckwldg + self.demo_knowledge(texts)
+        rep_knwldg = emb_with_ckwldg + self.rep_knowledge(texts)
 
-        # (TODO) domain-specific knowledge encoding
-        #  emb_with_dem = self.democratic_knowledge_encoder(emb_with_cknwlg)
-        #  emb_with_rep = self.republican_cknowledge_encoder(emb_with_cknwlg)
         # concate and pass a FC layer
+        #  print (torch.cat((demo_knwldg, rep_knwldg), 1).size())
+        #  emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 1))
 
         # word-level self-attention layers
-        word_embeddings = self.transformer_encoder(emb_with_pos)
+        ########################## here
+        word_embeddings = self.transformer_encoder(emb_with_knowledge)
 
         # (TODO) setentence-level self-attention layers + title-attention
         word_embeddings = word_embeddings.mean(dim=1)
@@ -84,31 +114,30 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-#  class KnowledgeEncoding(nn.Module):
+class KnowledgeEncoding(nn.Module):
 
-    #  def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
-        #  super().__init__()
-        #  #  self.dropout = nn.Dropout(p=dropout)
+    def __init__(self, vocab_size: int, d_model: int, dropout: float = 0.1):
+        super().__init__()
+        #  self.dropout = nn.Dropout(p=dropout)
 
-        #  #  self.common_knowledge = nn.Embedding.from_pretrained()
-        #  #  self.demo_knowledge = nn.Embedding.from_pretrained()
-        #  #  self.rep_knowledge = nn.Embedding.from_pretrained()
 
-        #  #  self.fc = nn.Linear(embed_size, num_class)
-        #  #  self.init_weights()
+        self.fc = nn.Linear(embed_size*2, embed_size)
+        self.init_weights()
 
-    #  #  def init_weights(self) -> None:
-        #  #  initrange = 0.5
-        #  #  self.fc.weight.data.uniform_(-initrange, initrange)
-        #  #  self.fc.bias.data.zero_()
+    def init_weights(self) -> None:
+        initrange = 0.5
+        self.fc.weight.data.uniform_(-initrange, initrange)
+        self.fc.bias.data.zero_()
 
-    #  def forward(self, x: Tensor) -> Tensor:
-        #  #  x = x + self.pe[:x.size(0)]
+    def forward(self, x: Tensor) -> Tensor:
+        #  x = x + self.pe[:x.size(0)]
 
-        #  #  x = x + self.common_knowledge(x)
+        x = x + self.common_knowledge(x)
 
-        #  #  x = x + self.demo_knowledge(x)
-        #  #  x = x + self.rep_knowledge(x)
+        x = x + self.demo_knowledge(x)
+        x = x + self.rep_knowledge(x)
 
-        #  output = self.fc(word_embeddings)
-        #  return output
+        output = self.fc(word_embeddings)
+        return output
+
+
