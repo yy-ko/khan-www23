@@ -134,7 +134,8 @@ def main():
     max_accuracy = 0
     num_batches = 0
 
-    for epoch in tqdm(range(args.num_epochs)): 
+    #  for epoch in tqdm(range(args.num_epochs)): 
+    for epoch in range(args.num_epochs): 
         epoch_start_time = time.time() 
         model.train()  # turn on train mode 
         train_correct, train_count = 0, 0 

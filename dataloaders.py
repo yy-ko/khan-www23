@@ -23,7 +23,7 @@ def yield_tokens_2(data_iter, tokenizer):
         yield tokenizer(str(text))
         yield tokenizer(str(title))
 
-def preprocess_text (text):
+def preprocess_text(text):
     text = text.str.lower() # lowercase
     text = text.str.replace(r"\#","") # replaces hashtags
     text = text.str.replace(r"http\S+","URL")  # remove URL addresses
@@ -67,7 +67,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
 
     # read a dataset file from a local path and pre-process it
     dataset = pd.read_csv(data_path)
-    dataset["text"]= preprocess_text(dataset["text"].astype(str))
+    dataset["text"] = preprocess_text(dataset["text"].astype(str))
     dataset = dataset[['text','label']]
 
     # split a dataset into train/test datasets

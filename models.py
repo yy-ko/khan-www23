@@ -42,7 +42,7 @@ class KHANModel(nn.Module):
         word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
         emb_with_pos = self.pos_encoder(word_embeddings)
 
-        emb_with_knwlg = self.knowledge_encoder(emb_with_pos)
+        #  emb_with_knwlg = self.knowledge_encoder(emb_with_pos)
 
         # position and knowledge encoding in word-level embeddings
         #  emb_with_cknwlg = self.cknowledge_encoder(emb_with_pos)
@@ -84,31 +84,31 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class KnowledgeEncoding(nn.Module):
+#  class KnowledgeEncoding(nn.Module):
 
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
-        super().__init__()
-        #  self.dropout = nn.Dropout(p=dropout)
+    #  def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        #  super().__init__()
+        #  #  self.dropout = nn.Dropout(p=dropout)
 
-        self.common_knowledge = nn.Embedding.from_pretrained()
-        self.demo_knowledge = nn.Embedding.from_pretrained()
-        self.rep_knowledge = nn.Embedding.from_pretrained()
+        #  #  self.common_knowledge = nn.Embedding.from_pretrained()
+        #  #  self.demo_knowledge = nn.Embedding.from_pretrained()
+        #  #  self.rep_knowledge = nn.Embedding.from_pretrained()
 
-        self.fc = nn.Linear(embed_size, num_class)
-        self.init_weights()
+        #  #  self.fc = nn.Linear(embed_size, num_class)
+        #  #  self.init_weights()
 
-    def init_weights(self) -> None:
-        initrange = 0.5
-        self.fc.weight.data.uniform_(-initrange, initrange)
-        self.fc.bias.data.zero_()
+    #  #  def init_weights(self) -> None:
+        #  #  initrange = 0.5
+        #  #  self.fc.weight.data.uniform_(-initrange, initrange)
+        #  #  self.fc.bias.data.zero_()
 
-    def forward(self, x: Tensor) -> Tensor:
-        #  x = x + self.pe[:x.size(0)]
+    #  def forward(self, x: Tensor) -> Tensor:
+        #  #  x = x + self.pe[:x.size(0)]
 
-        x = x + self.common_knowledge(x)
+        #  #  x = x + self.common_knowledge(x)
 
-        x = x + self.demo_knowledge(x)
-        x = x + self.rep_knowledge(x)
+        #  #  x = x + self.demo_knowledge(x)
+        #  #  x = x + self.rep_knowledge(x)
 
-        output = self.fc(word_embeddings)
-        return output
+        #  output = self.fc(word_embeddings)
+        #  return output
