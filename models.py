@@ -15,6 +15,7 @@ class KHANModel(nn.Module):
         self.embed_size = embed_size
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
 
+
         common_knowledge = []
         rep_knowledge = []
         demo_knowledge = []
@@ -78,12 +79,44 @@ class KHANModel(nn.Module):
         rep_knwldg = emb_with_ckwldg + self.rep_knowledge(texts)
 
         # concate and pass a FC layer
-        #  print (torch.cat((demo_knwldg, rep_knwldg), 1).size())
-        #  emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 1))
+        #  emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
 
         # word-level self-attention layers
         ########################## here
-        word_embeddings = self.transformer_encoder(emb_with_knowledge)
+        #  word_embeddings = self.transformer_encoder(emb_with_knowledge)
+        word_embeddings = self.transformer_encoder(emb_with_ckwldg)
+        #  print (texts.size()) # b * seq_len
+        #  print (word_embeddings.size()) # b * seq_len * d_model
+
+        #  for i, text in enumerate(texts): # # of batches
+            #  s_count = 0
+            #  sentence = None
+            #  doc = []
+            #  num_sentences = 0
+            #  for j, word_idx in enumerate(text): # document length (# of words) # 30?
+                #  if word_idx == 1 and sentence is not None: # if sentence seperator
+                    #  sentence /= s_count
+                    #  doc.append(sentence)
+
+                    #  sentence = None
+                    #  s_count = 0
+                    #  num_sentences += 1
+                #  else:
+                    #  if s_count == 0:
+                        #  sentence = word_embeddings[i][j] 
+                        #  s_count += 1
+                    #  else:
+                        #  sentence += word_embeddings[i][j] 
+                        #  s_count += 1
+
+                #  if num_sentences > 30:
+                    #  break
+            #  if num_sentences < 30:
+                #  for _ in range(30 - num_sentences):
+                    #  doc.append(self.embeddings(torch.LongTensor([[0]])))
+
+            #  print (torch.stack(doc).size()) # s * d_model
+        #  print (sentence.size()) # b * s * d_model
 
         # (TODO) setentence-level self-attention layers + title-attention
         word_embeddings = word_embeddings.mean(dim=1)

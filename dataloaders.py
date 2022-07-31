@@ -16,7 +16,9 @@ from sklearn.model_selection import train_test_split
 
 def yield_tokens(data_iter, tokenizer):
     for _, text in data_iter:
-        yield tokenizer(str(text))
+        #  print (tokenizer(text))
+        yield tokenizer(text)
+        #  yield tokenizer(str(text))
 
 def yield_tokens_2(data_iter, tokenizer):
     for _, title, text in data_iter:
@@ -24,6 +26,8 @@ def yield_tokens_2(data_iter, tokenizer):
         yield tokenizer(str(title))
 
 def preprocess_text(text):
+    # (TODO) '<splt>' sentence seperator
+
     text = text.str.lower() # lowercase
     text = text.str.replace(r"\#","") # replaces hashtags
     text = text.str.replace(r"http\S+","URL")  # remove URL addresses
@@ -79,9 +83,8 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
 
     # build vocab
     tokenizer = get_tokenizer('basic_english')
-    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>'])
+    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', 'splt'])
     vocab.set_default_index(vocab['<unk>'])
-
 
     # (TODO): mapping knowledge and vocab
     # get knowledge entities/relations as a list
@@ -122,7 +125,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     train_dataset = to_map_style_dataset(train_iter)
     test_dataset = to_map_style_dataset(test_iter)
 
-    train_size = int(len(train_dataset) * 0.9)
+    train_size = int(len(train_dataset) * 1)
     val_size = len(train_dataset) - train_size
     train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
