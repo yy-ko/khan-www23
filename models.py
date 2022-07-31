@@ -9,34 +9,62 @@ from torch.utils.data import dataset
 
 class KHANModel(nn.Module):
 
-    def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int, existing_knowledge_indices):
+    def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int, knowledge_indices):
         super(KHANModel, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.embed_size = embed_size
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
 
+        #  print (a.shape)
+        #  print (b.shape)
+
+        print('  ')
+        print('  - Initializing...')
+        print('  - Reading Pre-trained Knowledge Embeddings...')
+
+        demo_pre_trained = np.load('./kgraphs/pre-trained/liberal.RatatE.128/entity_embedding.npy')
+        rep_pre_trained = np.load('./kgraphs/pre-trained/conservative.RotatE.128/entity_embedding.npy')
 
         common_knowledge = []
         rep_knowledge = []
         demo_knowledge = []
+        rep = 0
+        demo = 0
+
         for idx in range(vocab_size):
-            if idx in existing_knowledge_indices:
-                # (TODO) replace this with actual embeddings
-                common_knowledge.append(np.zeros(embed_size))
-            else:
+            mapping = 0
+            for j, vocab_idx in enumerate(knowledge_indices['rep']):
+                if idx != 0 and idx == vocab_idx:
+                    common_knowledge.append(np.zeros(embed_size))
+                    mapping = 1
+                    break
+            if mapping == 0:
                 common_knowledge.append(np.zeros(embed_size))
 
-            if idx in existing_knowledge_indices:
-                # (TODO) replace this with actual embeddings
-                rep_knowledge.append(np.zeros(embed_size))
-            else:
+            mapping = 0
+            for j, vocab_idx in enumerate(knowledge_indices['rep']):
+                if idx != 0 and idx == vocab_idx:
+                    rep_knowledge.append(rep_pre_trained[j])
+                    #  rep_knowledge.append(np.zeros(embed_size))
+                    mapping = 1
+                    rep += 1
+                    break
+            if mapping == 0:
                 rep_knowledge.append(np.zeros(embed_size))
 
-            if idx in existing_knowledge_indices:
-                # (TODO) replace this with actual embeddings
+            mapping = 0
+            for j, vocab_idx in enumerate(knowledge_indices['demo']):
+                if idx != 0 and idx == vocab_idx:
+                    demo_knowledge.append(demo_pre_trained[j])
+                    #  demo_knowledge.append(np.zeros(embed_size))
+                    mapping = 1
+                    demo += 1
+                    break
+            if mapping == 0:
                 demo_knowledge.append(np.zeros(embed_size))
-            else:
-                demo_knowledge.append(np.zeros(embed_size))
+
+        print (rep)
+        print (demo)
 
         self.common_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(common_knowledge))
         self.demo_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(rep_knowledge))
@@ -79,12 +107,12 @@ class KHANModel(nn.Module):
         rep_knwldg = emb_with_ckwldg + self.rep_knowledge(texts)
 
         # concate and pass a FC layer
-        #  emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
+        emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
+
 
         # word-level self-attention layers
-        ########################## here
-        #  word_embeddings = self.transformer_encoder(emb_with_knowledge)
-        word_embeddings = self.transformer_encoder(emb_with_ckwldg)
+        word_embeddings = self.transformer_encoder(emb_with_knowledge)
+        #  word_embeddings = self.transformer_encoder(emb_with_ckwldg)
         #  print (texts.size()) # b * seq_len
         #  print (word_embeddings.size()) # b * seq_len * d_model
 

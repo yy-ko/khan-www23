@@ -11,6 +11,7 @@ from torchtext.data.functional import to_map_style_dataset
 from collections import Counter, OrderedDict
 from typing import Iterable
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 
 
@@ -85,11 +86,35 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     tokenizer = get_tokenizer('basic_english')
     vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', 'splt'])
     vocab.set_default_index(vocab['<unk>'])
-
+    #  print (len(vocab))
+    
     # (TODO): mapping knowledge and vocab
     # get knowledge entities/relations as a list
-    entity_list = ['boy', 'girl', 'i']
-    existing_knowledge_indices = vocab.lookup_indices(entity_list)
+    knowledge_indices = {}
+    rep_entity_list = []
+    demo_entity_list = []
+    with open('./kgraphs/pre-trained/entities_con.dict') as rep_file:
+        while (line := rep_file.readline().rstrip()):
+            rep_entity_list.append(line.split()[1])
+
+    with open('./kgraphs/pre-trained/entities_lib.dict') as rep_file:
+        while (line := rep_file.readline().rstrip()):
+            demo_entity_list.append(line.split()[1])
+            #  print(line.split())
+
+    #  demo_entity_list = np.load('/kgraphs/pre-trained/entities_lib.dict')
+
+    rep_lookup_indices = vocab.lookup_indices(rep_entity_list)
+    demo_lookup_indices = vocab.lookup_indices(demo_entity_list)
+
+    knowledge_indices['rep'] = rep_lookup_indices
+    knowledge_indices['demo'] = demo_lookup_indices
+
+    #  print (len(rep_lookup_indices))
+    #  print (len(set(rep_lookup_indices)))
+
+    #  print (len(demo_lookup_indices))
+    #  print (len(set(demo_lookup_indices)))
 
     def collate_batch(batch): # split a label and text in each row
         text_pipeline = lambda x: vocab(tokenizer(x))
@@ -138,7 +163,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     valid_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
 
-    return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class, existing_knowledge_indices
+    return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class, knowledge_indices
 
 
 
