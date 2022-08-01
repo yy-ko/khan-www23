@@ -131,7 +131,7 @@ def main():
     criterion = nn.CrossEntropyLoss() # loss function
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, weight_decay=0) # optimizer
     #  optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate) # optimizer
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1) # learning rate scheduling
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1) # learning rate scheduling
 
 
     # ----------------------------------------------------------------------------#

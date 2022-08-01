@@ -93,6 +93,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     knowledge_indices = {}
     rep_entity_list = []
     demo_entity_list = []
+    common_entity_list = []
     with open('./kgraphs/pre-trained/entities_con.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             rep_entity_list.append(line.split()[1])
@@ -100,21 +101,28 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     with open('./kgraphs/pre-trained/entities_lib.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             demo_entity_list.append(line.split()[1])
-            #  print(line.split())
 
-    #  demo_entity_list = np.load('/kgraphs/pre-trained/entities_lib.dict')
+    with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
+        while (line := rep_file.readline().rstrip()):
+            common_entity_list.append(line.split()[1])
+            #  print(line.split())
 
     rep_lookup_indices = vocab.lookup_indices(rep_entity_list)
     demo_lookup_indices = vocab.lookup_indices(demo_entity_list)
+    common_lookup_indices = vocab.lookup_indices(common_entity_list)
 
     knowledge_indices['rep'] = rep_lookup_indices
     knowledge_indices['demo'] = demo_lookup_indices
+    knowledge_indices['common'] = common_lookup_indices
 
-    #  print (len(rep_lookup_indices))
-    #  print (len(set(rep_lookup_indices)))
+    print (len(rep_lookup_indices))
+    print (len(set(rep_lookup_indices)))
 
-    #  print (len(demo_lookup_indices))
-    #  print (len(set(demo_lookup_indices)))
+    print (len(demo_lookup_indices))
+    print (len(set(demo_lookup_indices)))
+
+    print (len(common_lookup_indices))
+    print (len(set(common_lookup_indices)))
 
     def collate_batch(batch): # split a label and text in each row
         text_pipeline = lambda x: vocab(tokenizer(x))

@@ -15,15 +15,13 @@ class KHANModel(nn.Module):
         self.embed_size = embed_size
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
 
-        #  print (a.shape)
-        #  print (b.shape)
-
         print('  ')
         print('  - Initializing...')
         print('  - Reading Pre-trained Knowledge Embeddings...')
 
-        demo_pre_trained = np.load('./kgraphs/pre-trained/liberal.RatatE.128/entity_embedding.npy')
-        rep_pre_trained = np.load('./kgraphs/pre-trained/conservative.RotatE.128/entity_embedding.npy')
+        #  demo_pre_trained = np.load('./kgraphs/pre-trained/liberal.RatatE.128/entity_embedding.npy')
+        #  rep_pre_trained = np.load('./kgraphs/pre-trained/conservative.RotatE.128/entity_embedding.npy')
+        #  common_pre_trained = np.load('./kgraphs/pre-trained/YAGO.RotatE.128/entity_embedding.npy')
 
         common_knowledge = []
         rep_knowledge = []
@@ -33,9 +31,10 @@ class KHANModel(nn.Module):
 
         for idx in range(vocab_size):
             mapping = 0
-            for j, vocab_idx in enumerate(knowledge_indices['rep']):
+            for j, vocab_idx in enumerate(knowledge_indices['common']):
                 if idx != 0 and idx == vocab_idx:
                     common_knowledge.append(np.zeros(embed_size))
+                    #  common_knowledge.append(np.pre_trained[j])
                     mapping = 1
                     break
             if mapping == 0:
@@ -44,8 +43,8 @@ class KHANModel(nn.Module):
             mapping = 0
             for j, vocab_idx in enumerate(knowledge_indices['rep']):
                 if idx != 0 and idx == vocab_idx:
-                    rep_knowledge.append(rep_pre_trained[j])
-                    #  rep_knowledge.append(np.zeros(embed_size))
+                    #  rep_knowledge.append(rep_pre_trained[j])
+                    rep_knowledge.append(np.zeros(embed_size))
                     mapping = 1
                     rep += 1
                     break
@@ -53,18 +52,19 @@ class KHANModel(nn.Module):
                 rep_knowledge.append(np.zeros(embed_size))
 
             mapping = 0
+
             for j, vocab_idx in enumerate(knowledge_indices['demo']):
                 if idx != 0 and idx == vocab_idx:
-                    demo_knowledge.append(demo_pre_trained[j])
-                    #  demo_knowledge.append(np.zeros(embed_size))
+                    #  demo_knowledge.append(demo_pre_trained[j])
+                    demo_knowledge.append(np.zeros(embed_size))
                     mapping = 1
                     demo += 1
                     break
             if mapping == 0:
                 demo_knowledge.append(np.zeros(embed_size))
 
-        print (rep)
-        print (demo)
+        #  print (rep)
+        #  print (demo)
 
         self.common_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(common_knowledge))
         self.demo_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(rep_knowledge))
