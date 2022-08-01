@@ -43,7 +43,7 @@ def evaluate(model, device, dataloader) -> float:
     total_count = 0
 
     with torch.no_grad():
-        for idx, (labels, texts) in enumerate(dataloader):
+        for idx, (labels, titles, texts) in enumerate(dataloader):
             predicted_label = model(texts)
             total_acc += (predicted_label.argmax(1) == labels).sum().item()
             total_count += labels.size(0)
@@ -93,6 +93,7 @@ def main():
     print('  - DATASET = %s' % (args.dataset))
     print('  - TRAINING BATCH SIZE = ' + str(args.batch_size))
     print('  - EVAL/TEST BATCH SIZE = ' + str(args.eval_batch_size))
+    print('  - MAX LENGTH OF EACH DOCUMENT = ' + str(args.max_len))
     print('  - NUM EPOCHS = ' + str(args.num_epochs))
     print('  - LEARNING RATE = ' + str(args.learning_rate))
     print('   ')
@@ -109,7 +110,7 @@ def main():
 
     nhead = 4 # 8
     d_hid = 512 # 2048
-    dropout = 0.1 # 0.1
+    dropout = 0.3 # 0.1
     nlayers = 4 # 
     train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_len, device)
 
@@ -135,7 +136,7 @@ def main():
     num_batches = 0
 
     #  for epoch in tqdm(range(args.num_epochs)): 
-    for epoch in range(args.num_epochs): 
+    for epoch in tqdm(range(args.num_epochs)): 
         epoch_start_time = time.time() 
         model.train()  # turn on train mode 
         train_correct, train_count = 0, 0 
@@ -143,7 +144,7 @@ def main():
         total_loss = 0.
 
         # ------------------------ Epoch Start ------------------------ #
-        for idx, (labels, texts) in enumerate(train_data):
+        for idx, (labels, titles, texts) in enumerate(train_data):
             optimizer.zero_grad()
             predicted_labels = model(texts)
             loss = criterion(predicted_labels, labels)
@@ -164,7 +165,7 @@ def main():
         # ------------------------------------------------------------------------------ #
         train_accuracy = train_correct / train_count
         val_accuracy = evaluate(model, device, test_data)
-        #  val_accuracy = evaluate(model, device, val_data)
+        # val_accuracy = evaluate(model, device, val_data)
 
         print('Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f}'.format(
             (epoch+1),
