@@ -14,7 +14,7 @@ class KHANModel(nn.Module):
         self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.embed_size = embed_size
 
-        self.knowledge_encoder = KnowledgeEncoding(embed_size)
+        # self.knowledge_encoder = KnowledgeEncoding(embed_size)
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
 
         encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout)
@@ -33,7 +33,6 @@ class KHANModel(nn.Module):
         """
         Args:
             texts: Tensor, shape [batch_size, seq_len]
-
         Returns:
             output: Tensor, shape[]
         """
@@ -42,7 +41,7 @@ class KHANModel(nn.Module):
         word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
         emb_with_pos = self.pos_encoder(word_embeddings)
 
-        #  emb_with_knwlg = self.knowledge_encoder(emb_with_pos)
+        # emb_with_knwlg = self.knowledge_encoder(emb_with_pos)
 
         # position and knowledge encoding in word-level embeddings
         #  emb_with_cknwlg = self.cknowledge_encoder(emb_with_pos)
