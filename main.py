@@ -26,7 +26,6 @@ from models import KHANModel
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", FutureWarning)
 
-
 # for Reproducibility
 def set_random_seeds(random_seed=0):
     torch.manual_seed(random_seed)
@@ -62,9 +61,16 @@ def main():
 
     # models & datasets
     parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
-    parser.add_argument('--dataset', type=str, default='SEMEVAL', help='Name of dataset.')
+    parser.add_argument("--embed_size", type=int, default=128, help="Word/Sentence Embedding size.")
     parser.add_argument('--max_len', type=int, default=50, help='Maximum length of each document.')
+    parser.add_argument('--num_layer', type=int, default=4, help='Number of Transformer Encoder Layers.')
+    parser.add_argument('--num_head', type=int, default=8, help='Number of Multihead Attentions.')
+    parser.add_argument('--d_hid', type=int, default=2048, help='Dimension of a hidden layer.')
+    parser.add_argument('--dropout', type=float, default=0.1, help='Dropout probability.')
+
+    parser.add_argument('--dataset', type=str, default='SEMEVAL', help='Name of dataset (SEMEVAL, ALLSIDES).')
     parser.add_argument('--data_path', type=str, default='./data', help='Data path.')
+
 
     parser.add_argument('--save_model', action='store_false', default=False, help='For Saving the current Model')
     parser.add_argument('--model_dir', type=str, default='../trained_models', help='Path for saving the trained model')
@@ -73,8 +79,7 @@ def main():
     parser.add_argument("--num_epochs", type=int, default=100, help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=64, help="Training batch size.")
     parser.add_argument("--eval_batch_size", type=int, default=16, help="Evaluation and test batch size.")
-    parser.add_argument("--learning_rate", type=float, default=5, help="Learning rate.")
-    parser.add_argument("--embed_size", type=int, default=64, help="Word/Sentennce Embedding size.")
+    parser.add_argument("--learning_rate", type=float, default=0.1, help="Learning rate.")
     parser.add_argument('--seed', type=int, default=1, metavar='S', help='Random seed (default: 1)') # for reproducibility
 
     args = parser.parse_args()
@@ -88,12 +93,17 @@ def main():
 
     # Summary of training information
     #  if global_rank == 0:
-    print('===============================TRAIN INFO START===============================')
+    print('====================================TRAIN INFO START====================================')
     print('  - TRAINING MODEL = %s' % (args.model))
+    print('     - Embedding Size = %s' % (args.embed_size))
+    print('     - Maximum Length = %s' % (args.max_len))
+    print('     - Number of Transformer Encoder Layers = %s' % (args.num_layer))
+    print('     - Number of Multi-head Attentions = %s' % (args.num_head))
+    print('     - Hidden Layer Dimension = %s' % (args.d_hid))
+    print('     - Dropout Probability = %s' % (args.dropout))
     print('  - DATASET = %s' % (args.dataset))
     print('  - TRAINING BATCH SIZE = ' + str(args.batch_size))
     print('  - EVAL/TEST BATCH SIZE = ' + str(args.eval_batch_size))
-    print('  - MAX LENGTH OF EACH DOCUMENT = ' + str(args.max_len))
     print('  - NUM EPOCHS = ' + str(args.num_epochs))
     print('  - LEARNING RATE = ' + str(args.learning_rate))
     print('   ')
@@ -108,18 +118,19 @@ def main():
     #  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     device = torch.device("cuda:{}".format(args.gpu_index)) 
 
-    nhead = 4 # 8
-    d_hid = 512 # 2048
-    dropout = 0.3 # 0.1
-    nlayers = 4 # 
-    train_data, val_data, test_data, vocab_size, num_class = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_len, device)
-
-    model = KHANModel(vocab_size, args.embed_size, nhead, d_hid, nlayers, dropout, num_class)
+    nhead = args.num_head # 8
+    d_hid = args.d_hid # 2048
+    dropout = args.dropout # 0.1
+    nlayers = args.num_layer # 4
+    train_data, val_data, test_data, vocab_size, num_class, test_list = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_len, device)
+    
+    model = KHANModel(vocab_size, args.embed_size, nhead, d_hid, nlayers, dropout, num_class, test_list)
     model = model.to(device) # model to GPU
-
+    
     criterion = nn.CrossEntropyLoss() # loss function
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9) # optimizer
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1) # learning rate scheduling
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, weight_decay=0) # optimizer
+    #  optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate) # optimizer
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1) # learning rate scheduling
 
 
     # ----------------------------------------------------------------------------#
@@ -172,7 +183,8 @@ def main():
             total_loss/ len(train_data), 
             train_accuracy,
             val_accuracy,
-            epoch_time)
+            epoch_time,
+            scheduler.get_last_lr()[0])
             )
 
         # ------------------------- Save Best Model ------------------------- #
@@ -187,7 +199,10 @@ def main():
     # ----------------------------------------------------------------------------#
     # ----------------------------- End of Training ------------------------------#
     # ----------------------------------------------------------------------------#
+    
+    #  test_accuracy = evaluate(model, device, test_data)
     total_train_time = time.time() - total_start_time
+    
     print('')
     print('=============================== Training End ===============================')
     print('Final Test Accuracy: {:.4f}, Total training time: {:.2f} (sec.)'.format(max_accuracy, total_train_time))
