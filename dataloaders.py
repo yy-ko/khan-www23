@@ -2,7 +2,7 @@ import torch, logging, sys
 from torch.utils.data import dataset, DataLoader, random_split
 from torch.utils.data.distributed import DistributedSampler
 
-from torchtext.datasets import AG_NEWS
+# from torchtext.datasets import AG_NEWS
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.functional import to_map_style_dataset
@@ -10,6 +10,7 @@ from torchtext.data.functional import to_map_style_dataset
 from collections import Counter, OrderedDict
 from typing import Iterable
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 
 def yield_tokens(data_iter, tokenizer):
@@ -18,6 +19,8 @@ def yield_tokens(data_iter, tokenizer):
         yield tokenizer(str(text))
 
 def preprocess_text(text):
+    # (TODO) '<splt>' sentence seperator
+
     text = text.str.lower() # lowercase
     text = text.str.replace(r"\#","") # replaces hashtags
     text = text.str.replace(r"http\S+","URL")  # remove URL addresses
@@ -75,17 +78,49 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     
     # build vocab
     tokenizer = get_tokenizer('basic_english')
-    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>'])
+    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', 'splt'])
     vocab.set_default_index(vocab['<unk>'])
 
     # (TODO): mapping knowledge and vocab
     # get knowledge entities/relations as a list
-    entity_list = ['boy', 'girl', 'i']
-    existing_knowledge_indices = vocab.lookup_indices(entity_list)
+    knowledge_indices = {}
+    rep_entity_list = []
+    demo_entity_list = []
+    common_entity_list = []
+    
+    with open('./kgraphs/pre-trained/entities_con.dict') as rep_file:
+        while (line := rep_file.readline().rstrip()):
+            rep_entity_list.append(line.split()[1])
 
+    with open('./kgraphs/pre-trained/entities_lib.dict') as rep_file:
+        while (line := rep_file.readline().rstrip()):
+            demo_entity_list.append(line.split()[1])
+
+    with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
+        while (line := rep_file.readline().rstrip()):
+            common_entity_list.append(line.split()[1])
+            #  print(line.split())
+
+    rep_lookup_indices = vocab.lookup_indices(rep_entity_list)
+    demo_lookup_indices = vocab.lookup_indices(demo_entity_list)
+    common_lookup_indices = vocab.lookup_indices(common_entity_list)
+
+    knowledge_indices['rep'] = rep_lookup_indices
+    knowledge_indices['demo'] = demo_lookup_indices
+    knowledge_indices['common'] = common_lookup_indices
+
+    print (len(rep_lookup_indices))
+    print (len(set(rep_lookup_indices)))
+
+    print (len(demo_lookup_indices))
+    print (len(set(demo_lookup_indices)))
+
+    print (len(common_lookup_indices))
+    print (len(set(common_lookup_indices)))
 
     def collate_batch(batch): # split a label and text in each row
-        title_pipeline = lambda x: vocab(tokenizer(x))
+        
+        title_pipeline = lambda x: vocab(tokenizer(str(x)))
         text_pipeline = lambda x: vocab(tokenizer(x))
         label_pipeline = lambda x: int(x)
 
@@ -130,7 +165,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     train_dataset = to_map_style_dataset(train_iter)
     test_dataset = to_map_style_dataset(test_iter)
 
-    train_size = int(len(train_dataset) * 0.9)
+    train_size = int(len(train_dataset) * 1)
     val_size = len(train_dataset) - train_size
     train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
@@ -143,4 +178,4 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     valid_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
 
-    return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class
+    return train_dataloader, valid_dataloader, test_dataloader, len(vocab), num_class, knowledge_indices
