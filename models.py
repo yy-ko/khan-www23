@@ -88,7 +88,6 @@ class KHANModel(nn.Module):
         """
         Args:
             texts: Tensor, shape [batch_size, seq_len]
-
         Returns:
             output: Tensor, shape[]
         """
@@ -96,6 +95,7 @@ class KHANModel(nn.Module):
         # word embeddings with position encoding
         word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
         emb_with_pos = self.pos_encoder(word_embeddings)
+        #  print (emb_with_pos.size())
 
         emb_with_ckwldg = emb_with_pos + self.common_knowledge(texts)
         demo_knwldg = emb_with_ckwldg + self.demo_knowledge(texts)
@@ -196,5 +196,3 @@ class KnowledgeEncoding(nn.Module):
 
         output = self.fc(word_embeddings)
         return output
-
-

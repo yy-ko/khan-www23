@@ -26,7 +26,6 @@ from models import KHANModel
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", FutureWarning)
 
-
 # for Reproducibility
 def set_random_seeds(random_seed=0):
     torch.manual_seed(random_seed)
@@ -43,7 +42,7 @@ def evaluate(model, device, dataloader) -> float:
     total_count = 0
 
     with torch.no_grad():
-        for idx, (labels, texts) in enumerate(dataloader):
+        for idx, (labels, titles, texts) in enumerate(dataloader):
             predicted_label = model(texts)
             total_acc += (predicted_label.argmax(1) == labels).sum().item()
             total_count += labels.size(0)
@@ -62,7 +61,7 @@ def main():
 
     # models & datasets
     parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
-    parser.add_argument("--embed_size", type=int, default=64, help="Word/Sentennce Embedding size.")
+    parser.add_argument("--embed_size", type=int, default=128, help="Word/Sentence Embedding size.")
     parser.add_argument('--max_len', type=int, default=50, help='Maximum length of each document.')
     parser.add_argument('--num_layer', type=int, default=4, help='Number of Transformer Encoder Layers.')
     parser.add_argument('--num_head', type=int, default=8, help='Number of Multihead Attentions.')
@@ -127,7 +126,7 @@ def main():
     
     model = KHANModel(vocab_size, args.embed_size, nhead, d_hid, nlayers, dropout, num_class, test_list)
     model = model.to(device) # model to GPU
-
+    
     criterion = nn.CrossEntropyLoss() # loss function
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, weight_decay=0) # optimizer
     #  optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate) # optimizer
@@ -148,7 +147,7 @@ def main():
     num_batches = 0
 
     #  for epoch in tqdm(range(args.num_epochs)): 
-    for epoch in range(args.num_epochs): 
+    for epoch in tqdm(range(args.num_epochs)): 
         epoch_start_time = time.time() 
         model.train()  # turn on train mode 
         train_correct, train_count = 0, 0 
@@ -156,7 +155,7 @@ def main():
         total_loss = 0.
 
         # ------------------------ Epoch Start ------------------------ #
-        for idx, (labels, texts) in enumerate(train_data):
+        for idx, (labels, titles, texts) in enumerate(train_data):
             optimizer.zero_grad()
             predicted_labels = model(texts)
             loss = criterion(predicted_labels, labels)
@@ -177,7 +176,7 @@ def main():
         # ------------------------------------------------------------------------------ #
         train_accuracy = train_correct / train_count
         val_accuracy = evaluate(model, device, test_data)
-        #  val_accuracy = evaluate(model, device, val_data)
+        # val_accuracy = evaluate(model, device, val_data)
 
         print('Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f} | Lr: {:6.4f}'.format(
             (epoch+1),
