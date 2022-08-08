@@ -19,9 +19,9 @@ class KHANModel(nn.Module):
         print('  - Initializing...')
         print('  - Reading Pre-trained Knowledge Embeddings...')
 
+        common_pre_trained = np.load('./kgraphs/pre-trained/YAGO.RotatE.128/entity_embedding.npy')
         demo_pre_trained = np.load('./kgraphs/pre-trained/liberal.RatatE.128/entity_embedding.npy')
         rep_pre_trained = np.load('./kgraphs/pre-trained/conservative.RotatE.128/entity_embedding.npy')
-        common_pre_trained = np.load('./kgraphs/pre-trained/YAGO.RotatE.128/entity_embedding.npy')
 
         common_knowledge = []
         rep_knowledge = []
@@ -33,8 +33,8 @@ class KHANModel(nn.Module):
             mapping = 0
             for j, vocab_idx in enumerate(knowledge_indices['common']):
                 if idx != 0 and idx == vocab_idx:
-                    #  common_knowledge.append(np.zeros(embed_size))
-                    common_knowledge.append(np.pre_trained[j])
+                    common_knowledge.append(np.zeros(embed_size))
+                    #  common_knowledge.append(common_pre_trained[j])
                     mapping = 1
                     break
             if mapping == 0:
@@ -96,21 +96,19 @@ class KHANModel(nn.Module):
         # word embeddings with position encoding
         word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
         emb_with_pos = self.pos_encoder(word_embeddings)
-        #  print (emb_with_pos.size())
 
         emb_with_ckwldg = emb_with_pos + self.common_knowledge(texts)
-        #  print (emb_with_ckwldg.size())
-
         demo_knwldg = emb_with_ckwldg + self.demo_knowledge(texts)
         rep_knwldg = emb_with_ckwldg + self.rep_knowledge(texts)
 
-        # concate and pass a FC layer
+        #  concate and pass a FC layer
         emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
 
 
         # word-level self-attention layers
         word_embeddings = self.transformer_encoder(emb_with_knowledge)
-        #  word_embeddings = self.transformer_encoder(emb_with_ckwldg)
+        #  word_embeddings = self.transformer_encoder(emb_with_pos)
+
         #  print (texts.size()) # b * seq_len
         #  print (word_embeddings.size()) # b * seq_len * d_model
 

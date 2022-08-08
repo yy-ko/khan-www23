@@ -87,9 +87,8 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', 'splt'])
     vocab.set_default_index(vocab['<unk>'])
     #  print (len(vocab))
-    
-    # (TODO): mapping knowledge and vocab
-    # get knowledge entities/relations as a list
+
+    # mapping knowledge with vocab
     knowledge_indices = {}
     rep_entity_list = []
     demo_entity_list = []
@@ -115,14 +114,14 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     knowledge_indices['demo'] = demo_lookup_indices
     knowledge_indices['common'] = common_lookup_indices
 
-    print (len(rep_lookup_indices))
-    print (len(set(rep_lookup_indices)))
+    #  print (len(rep_lookup_indices))
+    #  print (len(set(rep_lookup_indices)))
 
-    print (len(demo_lookup_indices))
-    print (len(set(demo_lookup_indices)))
+    #  print (len(demo_lookup_indices))
+    #  print (len(set(demo_lookup_indices)))
 
-    print (len(common_lookup_indices))
-    print (len(set(common_lookup_indices)))
+    #  print (len(common_lookup_indices))
+    #  print (len(set(common_lookup_indices)))
 
     def collate_batch(batch): # split a label and text in each row
         text_pipeline = lambda x: vocab(tokenizer(x))
