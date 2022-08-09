@@ -19,8 +19,6 @@ def yield_tokens(data_iter, tokenizer):
         yield tokenizer(str(text))
 
 def preprocess_text(text):
-    # (TODO) '<splt>' sentence seperator
-
     text = text.str.lower() # lowercase
     text = text.str.replace(r"\#","") # replaces hashtags
     text = text.str.replace(r"http\S+","URL")  # remove URL addresses
@@ -63,24 +61,23 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
 
     # read a dataset file from a local path and pre-process it
     dataset = pd.read_csv(data_path)
-    dataset["text"] = preprocess_text(dataset["text"].astype(str))
+    #  dataset["text"] = preprocess_text(dataset["text"].astype(str))
     dataset = dataset[['text','title','label']]
-    print(dataset.head())
 
     # split a dataset into train/test datasets
     train_df, test_df = train_test_split(dataset, train_size=0.9)
     v_train = train_df.values
     v_test = test_df.values
-    # train_iter = list(map(lambda x: (x.tolist()[1], x.tolist()[0]), v_train))
-    # test_iter = list(map(lambda x: (x.tolist()[1], x.tolist()[0]), v_test))
+
     train_iter = list(map(lambda x: (x.tolist()[2], x.tolist()[1], x.tolist()[0]), v_train))
     test_iter = list(map(lambda x: (x.tolist()[2], x.tolist()[1], x.tolist()[0]), v_test))
-    
+
     # build vocab
     tokenizer = get_tokenizer('basic_english')
-    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', 'splt'])
+    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<splt>'])
     vocab.set_default_index(vocab['<unk>'])
-    #  print (len(vocab))
+    #  print (vocab['<unk>'])
+    #  print (vocab['<splt>'])
 
     # mapping knowledge with vocab
     # get knowledge entities/relations as a list
@@ -100,7 +97,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
             demo_entity_list.append(line.split()[1])
 
 
-    with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
+    with open('./kgraphs/pre-trained/entity_FB15K.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             common_entity_list.append(line.split()[1])
 

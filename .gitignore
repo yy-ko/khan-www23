@@ -7,4 +7,7 @@ nohup.out
 *.log
 *.swp
 *.txt
+*.npy
+*.zip
+kgraphs/pre_trained/*
 .*

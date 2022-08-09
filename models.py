@@ -19,8 +19,8 @@ class KHANModel(nn.Module):
         print('  - Initializing...')
         print('  - Reading Pre-trained Knowledge Embeddings...')
 
-        common_pre_trained = np.load('./kgraphs/pre-trained/YAGO.RotatE.128/entity_embedding.npy')
-        demo_pre_trained = np.load('./kgraphs/pre-trained/liberal.RatatE.128/entity_embedding.npy')
+        common_pre_trained = np.load('./kgraphs/pre-trained/FB15K.RotatE.128/entity_embedding.npy')
+        demo_pre_trained = np.load('./kgraphs/pre-trained/liberal.RotatE.128/entity_embedding.npy')
         rep_pre_trained = np.load('./kgraphs/pre-trained/conservative.RotatE.128/entity_embedding.npy')
 
         common_knowledge = []
@@ -142,6 +142,7 @@ class KHANModel(nn.Module):
             #  print (torch.stack(doc).size()) # s * d_model
         #  print (sentence.size()) # b * s * d_model
 
+
         # (TODO) setentence-level self-attention layers + title-attention
         word_embeddings = word_embeddings.mean(dim=1)
 
@@ -189,7 +190,7 @@ class KnowledgeEncoding(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         #  x = x + self.pe[:x.size(0)]
 
-        x = x + self.common_knowledge(x)
+        k = x + self.common_knowledge(x)
 
         x = x + self.demo_knowledge(x)
         x = x + self.rep_knowledge(x)
