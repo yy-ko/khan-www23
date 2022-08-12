@@ -11,3 +11,5 @@ nohup.out
 *.zip
 kgraphs/pre_trained/*
 .*
+*.json
+*.dict
