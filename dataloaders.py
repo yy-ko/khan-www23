@@ -13,6 +13,9 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 
+
+MAX_WORDS = 30
+
 def yield_tokens(data_iter, tokenizer):
     for _, title, text in data_iter:
         yield tokenizer(str(title))
@@ -27,14 +30,14 @@ def preprocess_text(text):
     text = text.str.replace("\s{2,}", " ")
     return text
 
-def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, device):
+def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_sentence, device):
     """
         Args:
             dataset:
             data_path:
             batch_size:
             eval_batch_size:
-            max_len:
+            max_sentence:
             device:
         Returns:
             train_data:
@@ -76,8 +79,6 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
     tokenizer = get_tokenizer('basic_english')
     vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<splt>'])
     vocab.set_default_index(vocab['<unk>'])
-    #  print (vocab['<unk>'])
-    #  print (vocab['<splt>'])
 
     # mapping knowledge with vocab
     # get knowledge entities/relations as a list
@@ -96,10 +97,14 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
         while (line := demo_file.readline().rstrip()):
             demo_entity_list.append(line.split()[1])
 
-
-    with open('./kgraphs/pre-trained/entity_FB15K.dict') as rep_file:
+    with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
-            common_entity_list.append(line.split()[1])
+            #  print (line.split()[1].split('_')[0].lower())
+            common_entity_list.append(line.split()[1].split('_')[0].lower())
+
+    #  with open('./kgraphs/pre-trained/entities_FB15K.dict') as rep_file:
+        #  while (line := rep_file.readline().rstrip()):
+            #  common_entity_list.append(line.split()[1])
 
     rep_lookup_indices = vocab.lookup_indices(rep_entity_list)
     demo_lookup_indices = vocab.lookup_indices(demo_entity_list)
@@ -124,7 +129,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
         text_pipeline = lambda x: vocab(tokenizer(x))
         label_pipeline = lambda x: int(x)
 
-        label_list, title_list, text_list = [], [], []
+        label_list, title_list, text_list, sentence_list = [], [], [], []
         for (_label, _title, _text) in batch:
             label_list.append(label_pipeline(_label))
             title_indices = title_pipeline(_title)
@@ -133,10 +138,43 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
             # pad/trucate each article embedding according to maximum article length
             text_size = len(text_indices)
             title_size = len(title_indices)
+
+            s_list = []
+            sentence_tmp = [] 
+
+            for w_idx in text_indices:
+                if w_idx == 1: # end of sentence
+                    s_list.append(sentence_tmp)
+                    sentence_tmp = []
+                else:
+                    sentence_tmp.append(w_idx)
+
+            sentence_count = 0
+            preprocess_sentence_list = []
+
+            for i, sentence in enumerate(s_list):
+                if i >= max_sentence:
+                    break
+                if len(sentence) < MAX_WORDS:
+                    for _ in range(MAX_WORDS - len(sentence)):
+                        sentence.append(vocab['<unk>'])
+                elif len(sentence) > MAX_WORDS:
+                    sentence = sentence[:MAX_WORDS]
+                else:
+                    pass
+                preprocess_sentence_list.append(sentence)
+
+            if len(preprocess_sentence_list) < max_sentence:
+                for _ in range(max_sentence - len(preprocess_sentence_list)):
+                    preprocess_sentence_list.append([0]*MAX_WORDS)
+
+            sentence_list.append(preprocess_sentence_list)
+
+            max_len = max_sentence * MAX_WORDS
             if text_size < max_len:
                 padding_size = max_len - text_size
                 for _ in range(padding_size):
-                    text_indices.append(vocab['unk'])
+                    text_indices.append(vocab['<unk>'])
             elif text_size > max_len:
                 text_indices = text_indices[:max_len]
             else:
@@ -145,7 +183,7 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
             if title_size < max_len:
                 padding_size = max_len - title_size
                 for _ in range(padding_size):
-                    title_indices.append(vocab['unk'])
+                    title_indices.append(vocab['<unk>'])
             elif title_size > max_len:
                 title_indices = title_indices[:max_len]
             else:
@@ -154,13 +192,12 @@ def get_dataloaders(dataset, data_path, batch_size, eval_batch_size, max_len, de
             title_list.append(title_indices)
             text_list.append(text_indices) 
 
-        # print(label_list)
-        # print(title_list)
-        # print(text_list)
+
         label_list = torch.tensor(label_list, dtype=torch.int64)
         title_list = torch.tensor(title_list, dtype=torch.int64)
         text_list = torch.tensor(text_list, dtype=torch.int64)
-        return label_list.to(device), title_list.to(device), text_list.to(device)
+        sentence_list = torch.tensor(sentence_list, dtype=torch.int64)
+        return label_list.to(device), title_list.to(device), text_list.to(device), sentence_list.to(device)
 
     train_dataset = to_map_style_dataset(train_iter)
     test_dataset = to_map_style_dataset(test_iter)

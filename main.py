@@ -42,8 +42,9 @@ def evaluate(model, device, dataloader) -> float:
     total_count = 0
 
     with torch.no_grad():
-        for idx, (labels, titles, texts) in enumerate(dataloader):
-            predicted_label = model(texts)
+        for idx, (labels, titles, texts, sentences) in enumerate(dataloader):
+            #  predicted_label = model(texts)
+            predicted_label = model(sentences)
             total_acc += (predicted_label.argmax(1) == labels).sum().item()
             total_count += labels.size(0)
     return total_acc/total_count
@@ -62,7 +63,7 @@ def main():
     # models & datasets
     parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
     parser.add_argument("--embed_size", type=int, default=128, help="Word/Sentence Embedding size.")
-    parser.add_argument('--max_len', type=int, default=50, help='Maximum length of each document.')
+    parser.add_argument('--max_sentence', type=int, default=40, help='Maximum Number of Sentences in each document.')
     parser.add_argument('--num_layer', type=int, default=4, help='Number of Transformer Encoder Layers.')
     parser.add_argument('--num_head', type=int, default=8, help='Number of Multihead Attentions.')
     parser.add_argument('--d_hid', type=int, default=2048, help='Dimension of a hidden layer.')
@@ -96,7 +97,7 @@ def main():
     print('====================================TRAIN INFO START====================================')
     print('  - TRAINING MODEL = %s' % (args.model))
     print('     - Embedding Size = %s' % (args.embed_size))
-    print('     - Maximum Length = %s' % (args.max_len))
+    print('     - Maximum Length = %s' % (args.max_sentence))
     print('     - Number of Transformer Encoder Layers = %s' % (args.num_layer))
     print('     - Number of Multi-head Attentions = %s' % (args.num_head))
     print('     - Hidden Layer Dimension = %s' % (args.d_hid))
@@ -122,15 +123,16 @@ def main():
     d_hid = args.d_hid # 2048
     dropout = args.dropout # 0.1
     nlayers = args.num_layer # 4
-    train_data, val_data, test_data, vocab_size, num_class, test_list = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_len, device)
+    train_data, val_data, test_data, vocab_size, num_class, test_list = dataloaders.get_dataloaders(args.dataset, args.data_path, args.batch_size, args.eval_batch_size, args.max_sentence, device)
     
     model = KHANModel(vocab_size, args.embed_size, nhead, d_hid, nlayers, dropout, num_class, test_list)
     model = model.to(device) # model to GPU
     
     criterion = nn.CrossEntropyLoss() # loss function
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, weight_decay=0) # optimizer
-    #  optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate) # optimizer
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1) # learning rate scheduling
+    #  optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, weight_decay=0) # optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate) # optimizer
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=20) # learning rate scheduling
+    #  scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1) # learning rate scheduling
 
 
     # ----------------------------------------------------------------------------#
@@ -155,9 +157,10 @@ def main():
         total_loss = 0.
 
         # ------------------------ Epoch Start ------------------------ #
-        for idx, (labels, titles, texts) in enumerate(train_data):
+        for idx, (labels, titles, texts, sentences) in enumerate(train_data):
             optimizer.zero_grad()
-            predicted_labels = model(texts)
+            #  predicted_labels = model(texts)
+            predicted_labels = model(sentences)
             loss = criterion(predicted_labels, labels)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
@@ -167,7 +170,8 @@ def main():
             train_count += labels.size(0) 
             total_loss += loss.item()
 
-        scheduler.step()
+        epoch_loss = total_loss / len(train_data)
+        scheduler.step(epoch_loss)
         epoch_time = time.time() - epoch_start_time
         # ------------------------ Epoch End ------------------------ #
 
@@ -178,13 +182,12 @@ def main():
         val_accuracy = evaluate(model, device, test_data)
         # val_accuracy = evaluate(model, device, val_data)
 
-        print('Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f} | Lr: {:6.4f}'.format(
+        print('Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f}'.format(
             (epoch+1),
             total_loss/ len(train_data), 
             train_accuracy,
             val_accuracy,
-            epoch_time,
-            scheduler.get_last_lr()[0])
+            epoch_time)
             )
 
         # ------------------------- Save Best Model ------------------------- #
