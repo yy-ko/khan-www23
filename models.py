@@ -44,7 +44,6 @@ class KHANModel(nn.Module):
             print ('Wrong embedding dimension! Dimension should be 128, 256, 512, or 1024')
             sys.exit(1)
 
-
         common_pre_trained = np.load(common_knowledge_path)
         demo_pre_trained = np.load(demo_knowledge_path)
         rep_pre_trained = np.load(rep_knowledge_path)
@@ -134,6 +133,9 @@ class KHANModel(nn.Module):
 
                 #  concate and pass a FC layer
                 emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
+
+                # skip connection
+                emb_with_knowledge += emb_with_pos
 
                 #  word-level self-attention layers
                 word_embeddings = self.word_transformer(emb_with_knowledge)

@@ -14,12 +14,12 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 
-MAX_WORDS = 30
+MAX_WORDS = 40
 
 def yield_tokens(data_iter, tokenizer):
     for _, title, text in data_iter:
-        yield tokenizer(str(title))
-        yield tokenizer(str(text))
+        yield tokenizer(title)
+        yield tokenizer(text)
 
 def preprocess_text(text):
     text = text.str.lower() # lowercase
@@ -45,17 +45,16 @@ def data_preprocessing(dataset, data_path):
     if dataset =='SEMEVAL':
         num_class = 2
         tokenizer = get_tokenizer('basic_english')
-        data_path += '/semeval.csv'
+        #  data_path += '/semeval.csv'
+        data_path += '/semeval-new.csv'
 
     elif dataset =='ALLSIDES-S':
         num_class = 3
         data_path += '/khan_dataset.csv'
-        # data_path += '/news_dataset_test.csv'
 
     elif dataset =='ALLSIDES-L':
         num_class = 5
         data_path += '/khan_dataset.csv'
-        # data_path += '/news_dataset_test.csv'
 
     else:
         logging.error('Invalid dataset name!')
@@ -63,7 +62,7 @@ def data_preprocessing(dataset, data_path):
 
     # read a dataset file from a local path and pre-process it
     dataset = pd.read_csv(data_path)
-    dataset["text"] = preprocess_text(dataset["text"].astype(str))
+    #  dataset["text"] = preprocess_text(dataset["text"].astype(str))
     dataset = dataset[['text','title','label']]
 
     # split a dataset into train/test datasets
@@ -76,7 +75,8 @@ def data_preprocessing(dataset, data_path):
 
     # build vocab
     tokenizer = get_tokenizer('basic_english')
-    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<splt>'])
+    #  vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<splt>'])
+    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<sep>'])
     vocab.set_default_index(vocab['<unk>'])
 
     knowledge_indices = {}
