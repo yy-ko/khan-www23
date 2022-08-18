@@ -151,7 +151,7 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, devi
         text_pipeline = lambda x: vocab(tokenizer(x))
         label_pipeline = lambda x: int(x)
 
-        label_list, title_list, text_list, sentence_list = [], [], [], []
+        label_list, title_list, sentence_list = [], [], []
         for (_label, _title, _text) in batch:
             label_list.append(label_pipeline(_label))
             title_indices = title_pipeline(_title)
@@ -159,7 +159,6 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, devi
 
             # pad/trucate each article embedding according to maximum article length
             text_size = len(text_indices)
-            title_size = len(title_indices)
 
             s_list = []
             sentence_tmp = [] 
@@ -192,34 +191,23 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, devi
 
             sentence_list.append(preprocess_sentence_list)
 
-            max_len = max_sentence * MAX_WORDS
-            if text_size < max_len:
-                padding_size = max_len - text_size
-                for _ in range(padding_size):
-                    text_indices.append(vocab['<unk>'])
-            elif text_size > max_len:
-                text_indices = text_indices[:max_len]
-            else:
-                pass
-            
-            if title_size < max_len:
-                padding_size = max_len - title_size
-                for _ in range(padding_size):
+
+            title_len = len(title_indices)
+            if title_len < MAX_WORDS:
+                for _ in range(MAX_WORDS - title_len):
                     title_indices.append(vocab['<unk>'])
-            elif title_size > max_len:
-                title_indices = title_indices[:max_len]
+            elif title_len > MAX_WORDS:
+                title_indices = title_indices[:MAX_WORDS]
             else:
                 pass
 
             title_list.append(title_indices)
-            text_list.append(text_indices) 
 
 
         label_list = torch.tensor(label_list, dtype=torch.int64)
         title_list = torch.tensor(title_list, dtype=torch.int64)
-        text_list = torch.tensor(text_list, dtype=torch.int64)
         sentence_list = torch.tensor(sentence_list, dtype=torch.int64)
-        return label_list.to(device), title_list.to(device), text_list.to(device), sentence_list.to(device)
+        return label_list.to(device), title_list.to(device), sentence_list.to(device)
 
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)

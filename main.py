@@ -36,14 +36,14 @@ def set_random_seeds(random_seed=0):
     np.random.seed(random_seed)
     random.seed(random_seed)
 
-def evaluate(model, device, dataloader, alpha, beta) -> float:
+def evaluate(model, device, dataloader) -> float:
     model.eval()
     total_acc = 0
     total_count = 0
 
     with torch.no_grad():
-        for idx, (labels, titles, texts, sentences) in enumerate(dataloader):
-            predicted_label = model(sentences, alpha, beta)
+        for idx, (labels, titles, sentences) in enumerate(dataloader):
+            predicted_label = model(sentences, titles)
             total_acc += (predicted_label.argmax(1) == labels).sum().item()
             total_count += labels.size(0)
     return total_acc/total_count
@@ -127,7 +127,7 @@ def main():
     alpha = args.alpha
     beta = args.beta
 
-    model = KHANModel(len(vocab), args.embed_size, nhead, d_hid, nlayers, dropout, num_class, knowledge_list)
+    model = KHANModel(len(vocab), args.embed_size, nhead, d_hid, nlayers, dropout, num_class, knowledge_list, alpha, beta)
     model = model.to(device) # model to GPU
 
     criterion = nn.CrossEntropyLoss() # loss function
@@ -156,10 +156,10 @@ def main():
         total_loss = 0.
 
         # ------------------------ Epoch Start ------------------------ #
-        for idx, (labels, titles, texts, sentences) in enumerate(train_data):
+        for idx, (labels, titles, sentences) in enumerate(train_data):
             optimizer.zero_grad()
             #  predicted_labels = model(texts)
-            predicted_labels = model(sentences, alpha, beta)
+            predicted_labels = model(sentences, titles)
             loss = criterion(predicted_labels, labels)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
@@ -178,7 +178,7 @@ def main():
         # ----- at the end of every epoch, evaluating the current model a ccuracy ------ #
         # ------------------------------------------------------------------------------ #
         train_accuracy = train_correct / train_count
-        val_accuracy = evaluate(model, device, test_data, alpha, beta)
+        val_accuracy = evaluate(model, device, test_data)
         # val_accuracy = evaluate(model, device, val_data)
 
         print('Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f}'.format(

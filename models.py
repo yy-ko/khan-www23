@@ -9,16 +9,93 @@ from torch.utils.data import dataset
 
 class KHANModel(nn.Module):
 
-    def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int, knowledge_indices):
+    def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int, knowledge_indices, alpha, beta):
         super(KHANModel, self).__init__()
+
         self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.embed_size = embed_size
-        self.pos_encoder = PositionalEncoding(embed_size, dropout)
 
-        print('  ')
-        print('  - Initializing...')
-        print('  - Reading Pre-trained Knowledge Embeddings...')
+        self.pos_encoder = PositionalEncoding(embed_size, dropout, vocab_size)
+        #  self.knowledge_encoder = KnowledgeEncoding(vocab_size, embed_size, knowledge_indices, alpha, beta, dropout) 
 
+        word_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout, batch_first=True)
+        self.word_transformer = TransformerEncoder(word_encoder_layers, nlayers)
+
+        sentence_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout, batch_first=True)
+        self.sentence_transformer = TransformerEncoder(sentence_encoder_layers, nlayers)
+
+        self.title_multihead_attention = nn.MultiheadAttention(embed_size, nhead, dropout)
+
+        self.fc = nn.Linear(embed_size, num_class)
+        self.init_weights()
+
+    def init_weights(self) -> None:
+        initrange = 0.5
+        self.embeddings.weight.data.uniform_(-initrange, initrange)
+        self.fc.weight.data.uniform_(-initrange, initrange)
+        self.fc.bias.data.zero_()
+
+    #  def forward(self, texts: Tensor) -> Tensor:
+    def forward(self, sentences: Tensor, titles: Tensor) -> Tensor:
+        """
+        Args:
+            sentences: Tensor, shape [batch_size, sentence_len, word_len]
+        Returns:
+            output: Tensor, shape[batch_size, num_class]
+        """
+        isHierarchy = True
+
+        if isHierarchy == True:
+            #  title_embeddings = self.embeddings(titles) * math.sqrt(self.embed_size)
+            #  title_embeddings = self.pos_encoder(title_embeddings)
+            #  title_embeddings = self.word_transformer(title_with_pos)
+            #  sentence_embedding = word_embeddings.mean(dim=1)
+
+            sentence_embeddings = []
+            for texts in sentences: # batch_size (# of articles in a batch)
+                word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
+                #  residual = word_embeddings
+                #  word_embeddings = self.knowledge_encoder(word_embeddings, texts)
+                #  word_embeddings += residual
+
+                word_with_pos = self.pos_encoder(word_embeddings)
+                word_embeddings = self.word_transformer(word_with_pos)
+
+                sentence_embedding = word_embeddings.mean(dim=1)
+                sentence_embeddings.append(sentence_embedding)
+
+            sentence_embeddings = torch.stack(sentence_embeddings)
+            sentence_embeddings = self.pos_encoder(sentence_embeddings)
+            sentence_embeddings = self.sentence_transformer(sentence_embeddings)
+
+            # title-attention
+            #  sentence_embeddings = self.title_multihead_attention(title_embeddings, sentence_embeddings, sentence_embeddings)
+            doc_embeddings = sentence_embeddings.mean(dim=1)
+            #  print (doc_embeddings.size())
+
+            output = self.fc(doc_embeddings)
+            return output
+
+        else:
+            texts = torch.flatten(sentences, start_dim=1)
+            word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
+            emb_with_pos = self.pos_encoder(word_embeddings)
+            word_embeddings = self.word_transformer(emb_with_pos)
+            doc_embeddings = word_embeddings.mean(dim=1)
+
+            output = self.fc(doc_embeddings)
+            return self.dropout(output)
+
+
+
+
+class KnowledgeEncoding(nn.Module):
+
+    def __init__(self, vocab_size: int, embed_size: int, knowledge_indices, alpha: float, beta: float, dropout: float = 0.4):
+        super().__init__()
+
+        self.alpha = alpha
+        self.beta = beta
         #  common_knowledge_path = './kgraphs/pre-trained/FB15K.RotatE.'
         common_knowledge_path = './kgraphs/pre-trained/YAGO.RotatE.'
         demo_knowledge_path = './kgraphs/pre-trained/liberal.RotatE.'
@@ -54,6 +131,7 @@ class KHANModel(nn.Module):
         rep = 0
         demo = 0
 
+        print('  - Reading Pre-trained Knowledge Embeddings...')
         for idx in range(vocab_size):
             mapping = 0
             for j, vocab_idx in enumerate(knowledge_indices['common']):
@@ -91,82 +169,25 @@ class KHANModel(nn.Module):
         self.rep_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(demo_knowledge))
 
         self.fuse_knowledge_fc = nn.Linear(embed_size*2, embed_size)
-
-        word_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout)
-        self.word_transformer = TransformerEncoder(word_encoder_layers, nlayers)
-
-        sentence_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout)
-        self.sentence_transformer = TransformerEncoder(sentence_encoder_layers, nlayers)
-
-        self.title_multihead_attention = nn.MultiheadAttention(embed_size, nhead, dropout)
-
-        self.fc = nn.Linear(embed_size, num_class)
+        self.dropout = nn.Dropout(p=dropout)
         self.init_weights()
 
     def init_weights(self) -> None:
         initrange = 0.5
-        self.embeddings.weight.data.uniform_(-initrange, initrange)
         self.fuse_knowledge_fc.weight.data.uniform_(-initrange, initrange)
         self.fuse_knowledge_fc.bias.data.zero_()
-        self.fc.weight.data.uniform_(-initrange, initrange)
-        self.fc.bias.data.zero_()
 
-    #  def forward(self, texts: Tensor) -> Tensor:
-    def forward(self, sentences: Tensor, alpha, beta) -> Tensor:
-        """
-        Args:
-            texts: Tensor, shape [batch_size, seq_len]
-        Returns:
-            output: Tensor, shape[]
-        """
-        isHierarchy = True
+    def forward(self, word_embeddings: Tensor, texts: Tensor) -> Tensor:
 
-        if isHierarchy == True:
-            sentence_embeddings = []
-            for texts in sentences:
-                word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
-                emb_with_pos = self.pos_encoder(word_embeddings)
+        emb_with_ckwldg = (word_embeddings * self.alpha) + (self.common_knowledge(texts) * (1-self.alpha))
 
-                emb_with_ckwldg = (emb_with_pos * alpha) + (self.common_knowledge(texts) * (1-alpha))
-                demo_knwldg = (emb_with_ckwldg * beta) + (self.demo_knowledge(texts) * (1-beta))
-                rep_knwldg = (emb_with_ckwldg * beta) + (self.rep_knowledge(texts) * (1-beta))
+        demo_knwldg = (emb_with_ckwldg * self.beta) + (self.demo_knowledge(texts) * (1-self.beta))
+        rep_knwldg = (emb_with_ckwldg * self.beta) + (self.rep_knowledge(texts) * (1-self.beta))
 
-                #  concate and pass a FC layer
-                emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
+        #  concate and pass a FC layer
+        emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
+        return self.dropout(emb_with_knowledge)
 
-                # skip connection
-                emb_with_knowledge += emb_with_pos
-
-                #  word-level self-attention layers
-                word_embeddings = self.word_transformer(emb_with_knowledge)
-                #  word_embeddings = self.word_transformer(emb_with_pos)
-
-                sentence_embedding = word_embeddings.mean(dim=1)
-                sentence_embeddings.append(sentence_embedding)
-
-            sentence_embeddings = torch.stack(sentence_embeddings)
-            sentence_embeddings = self.sentence_transformer(sentence_embeddings)
-            #  print (sentence_embeddings.size())
-
-            #  title_embeddings = self.embeddings(titles) * math.sqrt(self.embed_size)
-            #  print (title_embeddings.size())
-
-            # title-attention
-            #  sentence_embeddings = self.title_multihead_attention(title_embeddings, sentence_embeddings, sentence_embeddings)
-            doc_embeddings = sentence_embeddings.mean(dim=1)
-
-            output = self.fc(doc_embeddings)
-            return output
-
-        else:
-            texts = torch.flatten(sentences, start_dim=1)
-            word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
-            emb_with_pos = self.pos_encoder(word_embeddings)
-            word_embeddings = self.word_transformer(emb_with_pos)
-            doc_embeddings = word_embeddings.mean(dim=1)
-
-            output = self.fc(doc_embeddings)
-            return output
 
 
 class PositionalEncoding(nn.Module):
@@ -175,44 +196,22 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
-        position = torch.arange(max_len).unsqueeze(1)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        pe = torch.zeros(max_len, d_model)
+
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+
         self.register_buffer('pe', pe)
 
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:
-            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+            x: Tensor, shape [batch_size, seq_len, embedding_dim]
         """
-        x = x + self.pe[:x.size(0)]
+        x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)
 
 
-class KnowledgeEncoding(nn.Module):
-
-    def __init__(self, vocab_size: int, d_model: int, dropout: float = 0.1):
-        super().__init__()
-        #  self.dropout = nn.Dropout(p=dropout)
-
-
-        self.fc = nn.Linear(embed_size*2, embed_size)
-        self.init_weights()
-
-    def init_weights(self) -> None:
-        initrange = 0.5
-        self.fc.weight.data.uniform_(-initrange, initrange)
-        self.fc.bias.data.zero_()
-
-    def forward(self, x: Tensor) -> Tensor:
-        #  x = x + self.pe[:x.size(0)]
-
-        k = x + self.common_knowledge(x)
-
-        x = x + self.demo_knowledge(x)
-        x = x + self.rep_knowledge(x)
-
-        output = self.fc(word_embeddings)
-        return output
