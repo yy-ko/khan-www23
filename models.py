@@ -11,6 +11,7 @@ class KHANModel(nn.Module):
 
     def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int, knowledge_indices, alpha, beta):
         super(KHANModel, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
 
         self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.embed_size = embed_size
@@ -24,9 +25,10 @@ class KHANModel(nn.Module):
         sentence_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout, batch_first=True)
         self.sentence_transformer = TransformerEncoder(sentence_encoder_layers, nlayers)
 
-        self.title_multihead_attention = nn.MultiheadAttention(embed_size, nhead, dropout)
+        self.title_multihead_attention = nn.MultiheadAttention(embed_size, nhead, dropout, batch_first=True)
+        self.fc = nn.Linear(embed_size, embed_size)
 
-        self.fc = nn.Linear(embed_size, num_class)
+        self.classifier = nn.Linear(embed_size, num_class)
         self.init_weights()
 
     def init_weights(self) -> None:
@@ -34,6 +36,8 @@ class KHANModel(nn.Module):
         self.embeddings.weight.data.uniform_(-initrange, initrange)
         self.fc.weight.data.uniform_(-initrange, initrange)
         self.fc.bias.data.zero_()
+        self.classifier.weight.data.uniform_(-initrange, initrange)
+        self.classifier.bias.data.zero_()
 
     #  def forward(self, texts: Tensor) -> Tensor:
     def forward(self, sentences: Tensor, titles: Tensor) -> Tensor:
@@ -46,10 +50,10 @@ class KHANModel(nn.Module):
         isHierarchy = True
 
         if isHierarchy == True:
-            #  title_embeddings = self.embeddings(titles) * math.sqrt(self.embed_size)
-            #  title_embeddings = self.pos_encoder(title_embeddings)
-            #  title_embeddings = self.word_transformer(title_with_pos)
-            #  sentence_embedding = word_embeddings.mean(dim=1)
+            title_embeddings = self.embeddings(titles) * math.sqrt(self.embed_size)
+            title_embeddings = self.pos_encoder(title_embeddings)
+            title_embeddings = self.word_transformer(title_embeddings)
+            title_embeddings = title_embeddings.mean(dim=1).unsqueeze(1)
 
             sentence_embeddings = []
             for texts in sentences: # batch_size (# of articles in a batch)
@@ -69,11 +73,12 @@ class KHANModel(nn.Module):
             sentence_embeddings = self.sentence_transformer(sentence_embeddings)
 
             # title-attention
-            #  sentence_embeddings = self.title_multihead_attention(title_embeddings, sentence_embeddings, sentence_embeddings)
-            doc_embeddings = sentence_embeddings.mean(dim=1)
-            #  print (doc_embeddings.size())
+            #  sentence_embeddings, _ = self.title_multihead_attention(sentence_embeddings, title_embeddings, title_embeddings)
+            #  sentence_embeddings = self.dropout(self.fc(sentence_embeddings))
 
-            output = self.fc(doc_embeddings)
+            doc_embeddings = sentence_embeddings.mean(dim=1)
+
+            output = self.classifier(doc_embeddings)
             return output
 
         else:
