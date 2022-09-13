@@ -84,17 +84,16 @@ def data_preprocessing(dataset, data_path):
     demo_entity_list = []
     common_entity_list = []
 
-    with open('./kgraphs/pre-trained/entities_con.dict') as rep_file:
+    with open('./kgraphs/pre-trained-revised/entities_con.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             rep_entity_list.append(line.split()[1])
 
-    with open('./kgraphs/pre-trained/entities_lib.dict') as demo_file:
+    with open('./kgraphs/pre-trained-revised/entities_lib.dict') as demo_file:
         while (line := demo_file.readline().rstrip()):
             demo_entity_list.append(line.split()[1])
 
     with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
-            #  print (line.split()[1].split('_')[0].lower())
             common_entity_list.append(line.split()[1].split('_')[0].lower())
 
     #  with open('./kgraphs/pre-trained/entities_FB15K.dict') as rep_file:
@@ -110,14 +109,12 @@ def data_preprocessing(dataset, data_path):
     knowledge_indices['common'] = common_lookup_indices
 
     #  print (len(rep_lookup_indices))
-    #  print (len(set(rep_lookup_indices)))
-
     #  print (len(demo_lookup_indices))
-    #  print (len(set(demo_lookup_indices)))
-
     #  print (len(common_lookup_indices))
-    #  print (len(set(common_lookup_indices)))
 
+    #  print (len(set(rep_lookup_indices)))
+    #  print (len(set(demo_lookup_indices)))
+    #  print (len(set(common_lookup_indices)))
 
     return train_iter, test_iter, vocab, num_class, knowledge_indices
 

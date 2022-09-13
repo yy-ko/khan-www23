@@ -12,12 +12,17 @@ class KHANModel(nn.Module):
     def __init__(self, vocab_size: int, embed_size: int, nhead: int, d_hid: int, nlayers: int, dropout: float, num_class: int, knowledge_indices, alpha, beta):
         super(KHANModel, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
+        self.layer_norm = nn.LayerNorm(embed_size)
 
         self.embeddings = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.embed_size = embed_size
 
-        self.pos_encoder = PositionalEncoding(embed_size, dropout, vocab_size)
-        #  self.knowledge_encoder = KnowledgeEncoding(vocab_size, embed_size, knowledge_indices, alpha, beta, dropout) 
+        self.pos_encoder = PositionalEncoding(embed_size, dropout, 2400)
+        self.title_pos_encoder = PositionalEncoding(embed_size, dropout, 100)
+        self.knowledge_encoder = KnowledgeEncoding(vocab_size, embed_size, knowledge_indices, alpha, beta, dropout) 
+
+        title_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout, batch_first=True)
+        self.title_transformer = TransformerEncoder(title_encoder_layers, nlayers)
 
         word_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout, batch_first=True)
         self.word_transformer = TransformerEncoder(word_encoder_layers, nlayers)
@@ -26,16 +31,15 @@ class KHANModel(nn.Module):
         self.sentence_transformer = TransformerEncoder(sentence_encoder_layers, nlayers)
 
         self.title_multihead_attention = nn.MultiheadAttention(embed_size, nhead, dropout, batch_first=True)
-        self.fc = nn.Linear(embed_size, embed_size)
 
         self.classifier = nn.Linear(embed_size, num_class)
         self.init_weights()
 
+
+
     def init_weights(self) -> None:
         initrange = 0.5
         self.embeddings.weight.data.uniform_(-initrange, initrange)
-        self.fc.weight.data.uniform_(-initrange, initrange)
-        self.fc.bias.data.zero_()
         self.classifier.weight.data.uniform_(-initrange, initrange)
         self.classifier.bias.data.zero_()
 
@@ -51,19 +55,20 @@ class KHANModel(nn.Module):
 
         if isHierarchy == True:
             title_embeddings = self.embeddings(titles) * math.sqrt(self.embed_size)
-            title_embeddings = self.pos_encoder(title_embeddings)
-            title_embeddings = self.word_transformer(title_embeddings)
+            title_embeddings = self.title_pos_encoder(title_embeddings)
+            title_embeddings = self.title_transformer(title_embeddings)
             title_embeddings = title_embeddings.mean(dim=1).unsqueeze(1)
 
             sentence_embeddings = []
             for texts in sentences: # batch_size (# of articles in a batch)
                 word_embeddings = self.embeddings(texts) * math.sqrt(self.embed_size)
-                #  residual = word_embeddings
-                #  word_embeddings = self.knowledge_encoder(word_embeddings, texts)
-                #  word_embeddings += residual
+                residual = word_embeddings
+                word_embeddings = self.knowledge_encoder(word_embeddings, texts)
+                word_embeddings += residual
+                #  word_embeddings = self.layer_norm(word_embeddings + residual)
 
-                word_with_pos = self.pos_encoder(word_embeddings)
-                word_embeddings = self.word_transformer(word_with_pos)
+                word_embeddings = self.pos_encoder(word_embeddings)
+                word_embeddings = self.word_transformer(word_embeddings)
 
                 sentence_embedding = word_embeddings.mean(dim=1)
                 sentence_embeddings.append(sentence_embedding)
@@ -73,11 +78,12 @@ class KHANModel(nn.Module):
             sentence_embeddings = self.sentence_transformer(sentence_embeddings)
 
             # title-attention
-            #  sentence_embeddings, _ = self.title_multihead_attention(sentence_embeddings, title_embeddings, title_embeddings)
-            #  sentence_embeddings = self.dropout(self.fc(sentence_embeddings))
-
             doc_embeddings = sentence_embeddings.mean(dim=1)
+            title_embeddings, _ = self.title_multihead_attention(title_embeddings, sentence_embeddings, sentence_embeddings)
+            doc_embeddings = title_embeddings.squeeze(1) + doc_embeddings
+            #  doc_embeddings = self.layer_norm(title_embeddings.squeeze(1) + doc_embeddings)
 
+            #  output = self.classifier(title_embeddings.squeeze(1))
             output = self.classifier(doc_embeddings)
             return output
 
@@ -88,8 +94,8 @@ class KHANModel(nn.Module):
             word_embeddings = self.word_transformer(emb_with_pos)
             doc_embeddings = word_embeddings.mean(dim=1)
 
-            output = self.fc(doc_embeddings)
-            return self.dropout(output)
+            output = self.classifier(doc_embeddings)
+            return output
 
 
 
@@ -103,8 +109,11 @@ class KnowledgeEncoding(nn.Module):
         self.beta = beta
         #  common_knowledge_path = './kgraphs/pre-trained/FB15K.RotatE.'
         common_knowledge_path = './kgraphs/pre-trained/YAGO.RotatE.'
-        demo_knowledge_path = './kgraphs/pre-trained/liberal.RotatE.'
-        rep_knowledge_path = './kgraphs/pre-trained/conservative.RotatE.'
+        #  demo_knowledge_path = './kgraphs/pre-trained-revised/liberal.RotatE.'
+        #  rep_knowledge_path = './kgraphs/pre-trained-revised/conservative.RotatE.'
+        demo_knowledge_path = './kgraphs/pre-trained-revised/liberal.ModE.'
+        rep_knowledge_path = './kgraphs/pre-trained-revised/conservative.ModE.'
+
 
         if embed_size == 128:
             common_knowledge_path += '128/entity_embedding.npy'
@@ -158,7 +167,6 @@ class KnowledgeEncoding(nn.Module):
                 rep_knowledge.append(np.zeros(embed_size))
 
             mapping = 0
-
             for j, vocab_idx in enumerate(knowledge_indices['demo']):
                 if idx != 0 and idx == vocab_idx:
                     demo_knowledge.append(demo_pre_trained[j])
@@ -192,6 +200,8 @@ class KnowledgeEncoding(nn.Module):
         #  concate and pass a FC layer
         emb_with_knowledge = self.fuse_knowledge_fc(torch.cat((demo_knwldg, rep_knwldg), 2))
         return self.dropout(emb_with_knowledge)
+
+        #  return self.dropout(emb_with_ckwldg)
 
 
 
