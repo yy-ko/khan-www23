@@ -44,16 +44,19 @@ def data_preprocessing(dataset, data_path):
 
     if dataset =='SEMEVAL':
         num_class = 2
+        k_fold = 10
         tokenizer = get_tokenizer('basic_english')
         #  data_path += '/semeval.csv'
         data_path += '/semeval-new.csv'
 
     elif dataset =='ALLSIDES-S':
         num_class = 3
+        k_fold = 5
         data_path += '/khan_dataset.csv'
 
     elif dataset =='ALLSIDES-L':
         num_class = 5
+        k_fold = 1
         data_path += '/khan_dataset.csv'
 
     else:
@@ -84,11 +87,12 @@ def data_preprocessing(dataset, data_path):
     demo_entity_list = []
     common_entity_list = []
 
-    with open('./kgraphs/pre-trained-revised/entities_con.dict') as rep_file:
+
+    with open('./kgraphs/pre-trained-plus/entities_con.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             rep_entity_list.append(line.split()[1])
 
-    with open('./kgraphs/pre-trained-revised/entities_lib.dict') as demo_file:
+    with open('./kgraphs/pre-trained-plus/entities_lib.dict') as demo_file:
         while (line := demo_file.readline().rstrip()):
             demo_entity_list.append(line.split()[1])
 
@@ -116,7 +120,7 @@ def data_preprocessing(dataset, data_path):
     #  print (len(set(demo_lookup_indices)))
     #  print (len(set(common_lookup_indices)))
 
-    return train_iter, test_iter, vocab, num_class, knowledge_indices
+    return train_iter, test_iter, vocab, num_class, knowledge_indices # k_fold
 
 
 

@@ -99,7 +99,6 @@ class KHANModel(nn.Module):
 
 
 
-
 class KnowledgeEncoding(nn.Module):
 
     def __init__(self, vocab_size: int, embed_size: int, knowledge_indices, alpha: float, beta: float, dropout: float = 0.4):
@@ -111,8 +110,8 @@ class KnowledgeEncoding(nn.Module):
         common_knowledge_path = './kgraphs/pre-trained/YAGO.RotatE.'
         #  demo_knowledge_path = './kgraphs/pre-trained-revised/liberal.RotatE.'
         #  rep_knowledge_path = './kgraphs/pre-trained-revised/conservative.RotatE.'
-        demo_knowledge_path = './kgraphs/pre-trained-revised/liberal.ModE.'
-        rep_knowledge_path = './kgraphs/pre-trained-revised/conservative.ModE.'
+        demo_knowledge_path = './kgraphs/pre-trained-plus/liberal.ModE.'
+        rep_knowledge_path = './kgraphs/pre-trained-plus/conservative.ModE.'
 
 
         if embed_size == 128:
@@ -178,8 +177,8 @@ class KnowledgeEncoding(nn.Module):
 
 
         self.common_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(common_knowledge))
-        self.demo_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(rep_knowledge))
-        self.rep_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(demo_knowledge))
+        self.demo_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(demo_knowledge))
+        self.rep_knowledge = nn.Embedding.from_pretrained(torch.FloatTensor(rep_knowledge))
 
         self.fuse_knowledge_fc = nn.Linear(embed_size*2, embed_size)
         self.dropout = nn.Dropout(p=dropout)

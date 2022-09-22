@@ -123,7 +123,7 @@ def main():
 
     nhead = args.num_head # 8
     d_hid = args.d_hid # 2048
-    dropout = args.dropout # 0.1
+    dropout = args.dropout # 0.6
     nlayers = args.num_layer # 4
     alpha = args.alpha
     beta = args.beta
