@@ -1,4 +1,3 @@
-from pickle import TRUE
 import torch, logging, sys
 from torch.utils.data import dataset, DataLoader, random_split
 from torch.utils.data.distributed import DistributedSampler
@@ -13,6 +12,9 @@ from typing import Iterable
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, StratifiedKFold
+
+import main
 
 
 MAX_WORDS = 40
@@ -20,7 +22,7 @@ MAX_WORDS = 40
 def yield_tokens(data_iter, tokenizer):
     for _, title, text in data_iter:
         yield tokenizer(title)
-        yield tokenizer(text)
+        yield tokenizer(str(text))
 
 def preprocess_text(text):
     text = text.str.lower() # lowercase
@@ -31,7 +33,7 @@ def preprocess_text(text):
     #  text = text.str.replace("\s{2,}", " ")
     return text
 
-def data_preprocessing(dataset, data_path):
+def KFold_data_preprocessing(dataset, data_path):
     """
         Args:
             dataset:
@@ -40,22 +42,25 @@ def data_preprocessing(dataset, data_path):
             vocab_size:
             num_class:
     """
-
+    
     num_class = 0
 
     if dataset =='SEMEVAL':
         num_class = 2
+        k_folds = 10
         tokenizer = get_tokenizer('basic_english')
         #  data_path += '/semeval.csv'
         data_path += '/semeval-new.csv'
 
     elif dataset =='ALLSIDES-S':
         num_class = 3
-        data_path += '/khan_dataset.csv'
+        k_folds = 5
+        data_path += '/kcd_allsides_SEP.csv'
 
     elif dataset =='ALLSIDES-L':
         num_class = 5
-        data_path += '/khan_dataset.csv'
+        k_folds = 10
+        data_path += '/khan_dataset_SEP.csv'
 
     else:
         logging.error('Invalid dataset name!')
@@ -63,66 +68,92 @@ def data_preprocessing(dataset, data_path):
 
     # read a dataset file from a local path and pre-process it
     dataset = pd.read_csv(data_path)
+    dataset.dropna(inplace=True)
+    dataset.reset_index(drop=True, inplace=True)
+    
+    # For K-fold cross validation test
+    # dataset = dataset.iloc[:100,]
+    
     #  dataset["text"] = preprocess_text(dataset["text"].astype(str))
     dataset = dataset[['text','title','label']]
 
     # split a dataset into train/test datasets
-    train_df, test_df = train_test_split(dataset, train_size=0.9, shuffle=TRUE)
-    v_train = train_df.values
-    v_test = test_df.values
-
-    train_iter = list(map(lambda x: (x.tolist()[2], x.tolist()[1], x.tolist()[0]), v_train))
-    test_iter = list(map(lambda x: (x.tolist()[2], x.tolist()[1], x.tolist()[0]), v_test))
-
-    # build vocab
-    tokenizer = get_tokenizer('basic_english')
-    #  vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<splt>'])
-    vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<sep>'])
-    vocab.set_default_index(vocab['<unk>'])
-
+    # train_df, test_df = train_test_split(dataset, train_size=0.9)
+    
     knowledge_indices = {}
     rep_entity_list = []
     demo_entity_list = []
     common_entity_list = []
 
-    with open('./kgraphs/pre-trained/entities_con.dict') as rep_file:
+    with open('./kgraphs/pre-trained-plus/entities_con.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             rep_entity_list.append(line.split()[1])
 
-    with open('./kgraphs/pre-trained/entities_lib.dict') as demo_file:
+    with open('./kgraphs/pre-trained-plus/entities_lib.dict') as demo_file:
         while (line := demo_file.readline().rstrip()):
             demo_entity_list.append(line.split()[1])
 
     with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
-            #  print (line.split()[1].split('_')[0].lower())
             common_entity_list.append(line.split()[1].split('_')[0].lower())
 
     #  with open('./kgraphs/pre-trained/entities_FB15K.dict') as rep_file:
         #  while (line := rep_file.readline().rstrip()):
             #  common_entity_list.append(line.split()[1])
 
-    rep_lookup_indices = vocab.lookup_indices(rep_entity_list)
-    demo_lookup_indices = vocab.lookup_indices(demo_entity_list)
-    common_lookup_indices = vocab.lookup_indices(common_entity_list)
+    
+    kfold = KFold(n_splits=k_folds, shuffle=True, random_state= 42)
+    fold_idx = 0
+    total_accuracy = 0
+    total_train_time = 0
+    acc_list = []
+    
+    # K-th iteration
+    # Extraction each fold train/testset and train
+    for train_index, test_index in kfold.split(dataset):
+        fold_idx += 1
+        train_df, test_df = dataset.loc[train_index], dataset.loc[test_index]
+    
+        v_train = train_df.values
+        v_test = test_df.values
 
-    knowledge_indices['rep'] = rep_lookup_indices
-    knowledge_indices['demo'] = demo_lookup_indices
-    knowledge_indices['common'] = common_lookup_indices
+        train_iter = list(map(lambda x: (x.tolist()[2], x.tolist()[1], x.tolist()[0]), v_train))
+        test_iter = list(map(lambda x: (x.tolist()[2], x.tolist()[1], x.tolist()[0]), v_test))
 
-    print (len(rep_lookup_indices))
-    print (len(set(rep_lookup_indices)))
+        # build vocab
+        tokenizer = get_tokenizer('basic_english')
+        #  vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<splt>'])
+        vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<sep>'])
+        vocab.set_default_index(vocab['<unk>'])
+        
+        rep_lookup_indices = vocab.lookup_indices(rep_entity_list)
+        demo_lookup_indices = vocab.lookup_indices(demo_entity_list)
+        common_lookup_indices = vocab.lookup_indices(common_entity_list)
 
-    print (len(demo_lookup_indices))
-    print (len(set(demo_lookup_indices)))
+        knowledge_indices['rep'] = rep_lookup_indices
+        knowledge_indices['demo'] = demo_lookup_indices
+        knowledge_indices['common'] = common_lookup_indices
 
-    print (len(common_lookup_indices))
-    print (len(set(common_lookup_indices)))
+        #  print (len(rep_lookup_indices))
+        #  print (len(demo_lookup_indices))
+        #  print (len(common_lookup_indices))
 
-
-    return train_iter, test_iter, vocab, num_class, knowledge_indices
-
-
+        #  print (len(set(rep_lookup_indices)))
+        #  print (len(set(demo_lookup_indices)))
+        #  print (len(set(common_lookup_indices)))
+        
+        # train each k-fold 
+        fold_accuracy, fold_train_time = main.train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_indices, fold_idx, k_folds)
+        total_accuracy += fold_accuracy
+        total_train_time += fold_train_time
+        acc_list.append(fold_accuracy)
+    
+    print('')
+    print('=============================== {:2d}-Folds Training Result ==============================='.format(k_folds))
+    print('=============== Total Accuracy: {:.4f},    Training time: {:.2f} (sec.)   ================'.format(total_accuracy/k_folds, total_train_time))
+    print('=============== Accuracy variance: {:.4f}, Accuracy std: {:.4f}         ================'.format(np.var(acc_list), np.std(acc_list)))
+    print('========================================================================================')
+    print('Accuracy_list: ', acc_list)
 
 
 
@@ -152,7 +183,7 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, devi
         text_pipeline = lambda x: vocab(tokenizer(x))
         label_pipeline = lambda x: int(x)
 
-        label_list, title_list, text_list, sentence_list = [], [], [], []
+        label_list, title_list, sentence_list = [], [], []
         for (_label, _title, _text) in batch:
             label_list.append(label_pipeline(_label))
             title_indices = title_pipeline(_title)
@@ -160,7 +191,6 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, devi
 
             # pad/trucate each article embedding according to maximum article length
             text_size = len(text_indices)
-            title_size = len(title_indices)
 
             s_list = []
             sentence_tmp = [] 
@@ -193,34 +223,23 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, devi
 
             sentence_list.append(preprocess_sentence_list)
 
-            max_len = max_sentence * MAX_WORDS
-            if text_size < max_len:
-                padding_size = max_len - text_size
-                for _ in range(padding_size):
-                    text_indices.append(vocab['<unk>'])
-            elif text_size > max_len:
-                text_indices = text_indices[:max_len]
-            else:
-                pass
-            
-            if title_size < max_len:
-                padding_size = max_len - title_size
-                for _ in range(padding_size):
+
+            title_len = len(title_indices)
+            if title_len < MAX_WORDS:
+                for _ in range(MAX_WORDS - title_len):
                     title_indices.append(vocab['<unk>'])
-            elif title_size > max_len:
-                title_indices = title_indices[:max_len]
+            elif title_len > MAX_WORDS:
+                title_indices = title_indices[:MAX_WORDS]
             else:
                 pass
 
             title_list.append(title_indices)
-            text_list.append(text_indices) 
 
 
         label_list = torch.tensor(label_list, dtype=torch.int64)
         title_list = torch.tensor(title_list, dtype=torch.int64)
-        text_list = torch.tensor(text_list, dtype=torch.int64)
         sentence_list = torch.tensor(sentence_list, dtype=torch.int64)
-        return label_list.to(device), title_list.to(device), text_list.to(device), sentence_list.to(device)
+        return label_list.to(device), title_list.to(device), sentence_list.to(device)
 
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
