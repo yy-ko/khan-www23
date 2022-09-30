@@ -85,13 +85,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # print('Current cuda device:', torch.cuda.current_device())
 print('Count of using GPUs:', torch.cuda.device_count())
 
-eval_list = []
+# eval_list = []
 def evaluate(model, device, dataloader) -> float:
     model.eval() # turn on eval mode
     total_acc = 0
     total_count = 0
-    global eval_list
-
+    # global eval_list
+    eval_list = []
+    eval_list.append("**********TEST**********")
     # softmax 각 class 확률 추출 구현
     with torch.no_grad():
         for idx, (labels, titles, sentences) in enumerate(dataloader):
@@ -99,24 +100,25 @@ def evaluate(model, device, dataloader) -> float:
             
             # batch size만큼 들어가서 학습
             predicted_label = model(sentences, titles)
-            
+            # print(predicted_label.argmax(1))
             # label = labels[predicted_label.argmax(1)].cpu()
             # confidence = predicted_label[predicted_label.argmax(1)].cpu()
             # softmax 추출하려면 batch size = 1 로 설정해야함 => X
             # 각 배치의 맨 첫 데이터만 가져오는 방식
+            
             for i in range(labels.size(0)):
-                eval_list.append(softmax(predicted_label[i].cpu()))                    
+                eval_list.append(softmax(predicted_label[i].cpu()))
             
             total_acc += (predicted_label.argmax(1) == labels).sum().item()
             total_count += labels.size(0)
     return total_acc/total_count, eval_list
 
 test_eval_list = []
-def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fold_idx, k_folds):
+def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fold_idx, k_folds, sampler):
     
-    train_iter, test_iter, vocab, num_class, knowledge_list, fold_idx, k_folds = train_iter, test_iter, vocab, num_class, knowledge_list, fold_idx, k_folds
+    train_iter, test_iter, vocab, num_class, knowledge_list, fold_idx, k_folds, sampler = train_iter, test_iter, vocab, num_class, knowledge_list, fold_idx, k_folds, sampler
 
-    train_data, val_data, test_data = data_utils.get_dataloaders(train_iter, test_iter, vocab, args.batch_size, args.max_sentence, device)
+    train_data, val_data, test_data = data_utils.get_dataloaders(train_iter, test_iter, vocab, args.batch_size, args.max_sentence, sampler, device)
 
     nhead = args.num_head # 8
     d_hid = args.d_hid # 2048
@@ -132,15 +134,18 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
     model = nn.DataParallel(_model).to(device)
 
     criterion = nn.CrossEntropyLoss() # loss function
-    #  optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, weight_decay=0) # optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=5e-4) # optimizer
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10) # learning rate scheduling
-
+    
+    # adamax, nadam
+    # optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, weight_decay=0.9) # optimizer
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=0.05) # optimizer
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5, verbose=1) # learning rate scheduling
+    
     start_time = time.time()
     total_start_time = start_time
     max_accuracy = 0
     num_batches = 0
     global test_eval_list
+    train_eval_list = []
     
     for epoch in range(args.num_epochs): 
         epoch_start_time = time.time() 
@@ -154,9 +159,17 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
             optimizer.zero_grad()
             #  predicted_labels = model(texts)
             predicted_labels = model(sentences, titles)
+            
+            if epoch+1 == args.num_epochs:
+                for i in range(labels.size(0)):
+                    train_eval_list.append(softmax(predicted_labels[i].cpu().detach().numpy()))
+            
             loss = criterion(predicted_labels, labels)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
+            
+            # Gradient Clipping
+            max_grad_norm = 3
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
             train_correct += (predicted_labels.argmax(1) == labels).sum().item()
@@ -175,18 +188,20 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
         val_accuracy, eval_list = evaluate(model, device, test_data)
         
         # softmax extraction
-        if epoch+1 == args.num_epochs:
-            
-            test_eval_list.append('########## Until {:2d}-Fold ({:1d} epoch) ##########'.format(fold_idx, args.num_epochs))
-            test_eval_list += eval_list
-            if k_folds == fold_idx:
-                test_eval_list_df = pd.DataFrame(test_eval_list, columns=['Class Probability'])
-                # test_loss_list_df = pd.DataFrame(test_loss_list)
-                test_eval_list_df.to_csv("/home/yyko/workspace/political_pre/github/khan/Class_Probability.csv", index=False, encoding='utf-8-sig')
-                # test_loss_list_df.to_csv("/home/yyko/workspace/political_pre/github/khan/loss_list_r.csv", index=False, encoding='utf-8-sig')
-            
-        # val_accuracy = evaluate(model, device, val_data)
+        # if epoch+1 == args.num_epochs:
         
+        #     test_eval_list.append('########## Until {:2d}-Fold ({:1d} epoch) ##########'.format(fold_idx, args.num_epochs))
+        #     test_eval_list += eval_list
+        #     test_eval_list += train_eval_list
+        #     # if k_folds == fold_idx:
+        #     if fold_idx == 1:
+        #         test_eval_list_df = pd.DataFrame(test_eval_list, columns=['Class Probability'])
+        #         # test_loss_list_df = pd.DataFrame(test_loss_list)
+        #         test_eval_list_df.to_csv("/home/yyko/workspace/political_pre/github/khan/Class_Probability_sem27.csv", index=False, encoding='utf-8-sig')
+        #         # test_loss_list_df.to_csv("/home/yyko/workspace/political_pre/github/khan/loss_list_r.csv", index=False, encoding='utf-8-sig')
+        
+        # val_accuracy = evaluate(model, device, val_data)
+
         # K-fold 마다 print 되도록 구현
         print('Fold: {:3d} | Epoch: {:3d} | Loss: {:6.4f} | TrainAcc: {:6.4f} | ValAcc: {:6.4f} | Time: {:5.2f}'.format(
             fold_idx,
