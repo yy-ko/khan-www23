@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import torch
+import torch, sys
 from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
@@ -19,7 +19,7 @@ class KHANModel(nn.Module):
 
         self.pos_encoder = PositionalEncoding(embed_size, dropout, 2400)
         self.title_pos_encoder = PositionalEncoding(embed_size, dropout, 100)
-        self.knowledge_encoder = KnowledgeEncoding(vocab_size, embed_size, knowledge_indices, alpha, beta, dropout) 
+        self.knowledge_encoder = KnowledgeEncoding(vocab_size, embed_size, knowledge_indices, alpha, beta, dropout)
 
         title_encoder_layers = TransformerEncoderLayer(embed_size, nhead, d_hid, dropout, batch_first=True)
         self.title_transformer = TransformerEncoder(title_encoder_layers, nlayers)
@@ -36,7 +36,6 @@ class KHANModel(nn.Module):
         self.init_weights()
 
 
-
     def init_weights(self) -> None:
         initrange = 0.5
         self.embeddings.weight.data.uniform_(-initrange, initrange)
@@ -51,10 +50,12 @@ class KHANModel(nn.Module):
         Returns:
             output: Tensor, shape[batch_size, num_class]
         """
+        
         isHierarchy = True
+        isTitle = True
 
         if isHierarchy == True:
-            title_embeddings = self.embeddings(titles) * math.sqrt(self.embed_size)
+            title_embeddings = self.embeddings(titles).to(torch.long) * math.sqrt(self.embed_size)
             title_embeddings = self.title_pos_encoder(title_embeddings)
             title_embeddings = self.title_transformer(title_embeddings)
             title_embeddings = title_embeddings.mean(dim=1).unsqueeze(1)
@@ -79,8 +80,9 @@ class KHANModel(nn.Module):
 
             # title-attention
             doc_embeddings = sentence_embeddings.mean(dim=1)
-            title_embeddings, _ = self.title_multihead_attention(title_embeddings, sentence_embeddings, sentence_embeddings)
-            doc_embeddings = title_embeddings.squeeze(1) + doc_embeddings
+            if isTitle == True:
+                title_embeddings, _ = self.title_multihead_attention(title_embeddings, sentence_embeddings, sentence_embeddings)
+                doc_embeddings = title_embeddings.squeeze(1) + doc_embeddings
             #  doc_embeddings = self.layer_norm(title_embeddings.squeeze(1) + doc_embeddings)
 
             #  output = self.classifier(title_embeddings.squeeze(1))
@@ -101,20 +103,22 @@ class KHANModel(nn.Module):
 
 class KnowledgeEncoding(nn.Module):
 
-    def __init__(self, vocab_size: int, embed_size: int, knowledge_indices, alpha: float, beta: float, dropout: float = 0.4):
+    def __init__(self, vocab_size: int, embed_size: int, knowledge_indices, alpha: float, beta: float, dropout: float = 0.3):
         super().__init__()
 
         self.alpha = alpha
         self.beta = beta
         #  common_knowledge_path = './kgraphs/pre-trained/FB15K.RotatE.'
         common_knowledge_path = './kgraphs/pre-trained/YAGO.RotatE.'
-        #  demo_knowledge_path = './kgraphs/pre-trained-revised/liberal.RotatE.'
-        #  rep_knowledge_path = './kgraphs/pre-trained-revised/conservative.RotatE.'
+        # demo_knowledge_path = './kgraphs/pre-trained-plus/liberal.RotatE.'
+        # rep_knowledge_path = './kgraphs/pre-trained-plus/conservative.RotatE.'
+        # demo_knowledge_path = './kgraphs/pre-trained-plus/liberal.HAKE.'
+        # rep_knowledge_path = './kgraphs/pre-trained-plus/conservative.HAKE.'
         demo_knowledge_path = './kgraphs/pre-trained-plus/liberal.ModE.'
         rep_knowledge_path = './kgraphs/pre-trained-plus/conservative.ModE.'
 
 
-        if embed_size == 128:
+        if embed_size == 128:  
             common_knowledge_path += '128/entity_embedding.npy'
             demo_knowledge_path += '128/entity_embedding.npy'
             rep_knowledge_path += '128/entity_embedding.npy'
@@ -227,5 +231,3 @@ class PositionalEncoding(nn.Module):
         """
         x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)
-
-
