@@ -1,4 +1,4 @@
-# KHAN: Knowledge-Aware Hierarchical Attention Networks
+# KHAN: Knowledge-Aware Hierarchical Attention Networks (WWW'23)
 
 ## Available dataset
 1. [Reddit Dataset | Conservative and Liberal](https://drive.google.com/drive/folders/1RDSp2SoGgRFGybarVFUo6OPth8fiGjUC)
