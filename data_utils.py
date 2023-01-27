@@ -111,16 +111,16 @@ def KFold_data_preprocessing(dataset_n, data_path):
     demo_entity_list = []
     common_entity_list = []
 
-    with open('./kgraphs/pre-trained-plus/entities_con.dict') as rep_file:
+    with open('./pre-trained/entities_con.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             rep_entity_list.append(line.split()[1])
 
-    with open('./kgraphs/pre-trained-plus/entities_lib.dict') as demo_file:
+    with open('./pre-trained/entities_lib.dict') as demo_file:
         while (line := demo_file.readline().rstrip()):
             demo_entity_list.append(line.split()[1])
 
-    with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
-        while (line := rep_file.readline().rstrip()):
+    with open('./pre-trained/entities_yago.dict') as common_file:
+        while (line := common_file.readline().rstrip()):
             common_entity_list.append(line.split()[1].split('_')[0].lower())
     
     Skfold = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=10)
@@ -220,10 +220,10 @@ def KFold_data_preprocessing(dataset_n, data_path):
         total_train_time += fold_train_time
         acc_list.append(fold_accuracy)
         
-        if dataset_n == 'ALLSIDES-S' and fold_idx == 3:
-            break
-        if dataset_n == 'ALLSIDES-L':
-            break
+#         if dataset_n == 'ALLSIDES-S' and fold_idx == 3:
+#             break
+#         if dataset_n == 'ALLSIDES-L':
+#             break
 
     print('')
     print('=============================== {:2d}-Folds Training Result ==============================='.format(fold_idx))
