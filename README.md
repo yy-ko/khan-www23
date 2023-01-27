@@ -11,6 +11,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 6. [Wikidata:Every politician/Political data model](https://www.wikidata.org/wiki/Wikidata:WikiProject_every_politician)
 
 ## Datasets
+### Statistics of political news article datasets
 |Dataset|# of articles|Class distribution|
 |:---:|:---:|:---:|
 |SemEval|645|407/238|
