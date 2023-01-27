@@ -70,3 +70,16 @@ python3 main.py \
   --alpha=0.6 \
   --beta=0.2
 ```
+
+
+## Citation
+Please cite our paper if you have used the code in your work. You can use the following BibTex citation:
+```
+@inproceedings{ko2023khan,
+  title={KHAN: Knowledge-Aware Hierarchical Attention Networks for Accurate Political Stance Prediction},
+  author={Ko, Yunyong and Ryu, Seongeun and Han, Soeun and Jeon,Youngseung and Kim, Jaehoon and Park, Sohyun and Han, Kyungsik Tong, Hanghang and Kim., Sang-Wook},
+  booktitle={Proceedings of the ACM Web Conference (WWW) 2023},
+  pages={xxxx--xxxx},
+  year={2023}
+}
+```
