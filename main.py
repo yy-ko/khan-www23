@@ -97,19 +97,17 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
 
     train_data, val_data, test_data = data_utils.get_dataloaders(train_iter, test_iter, vocab, args.batch_size, args.max_sentence, sampler, device)
 
-    nhead = args.num_head # 8
-    d_hid = args.d_hid # 2048
-    dropout = args.dropout # 0.6
-    nlayers = args.num_layer # 4
+    nhead = args.num_head
+    d_hid = args.d_hid
+    dropout = args.dropout
+    nlayers = args.num_layer
     alpha = args.alpha
     beta = args.beta
 
     model = KHANModel(len(vocab), args.embed_size, nhead, d_hid, nlayers, dropout, num_class, knowledge_list, alpha, beta)
-    # print(model)
     params = list(model.parameters())
-    # print(len(params))
+    print(len(params))
     print(params[0].size())
-    # print(model.shape)
     
     model = model.to(device) # model to GPU
     total = sum([param.nelement() for param in model.parameters()])
@@ -143,7 +141,7 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
             loss.backward()
             
             # Gradient Clipping
-            max_grad_norm = 5
+            max_grad_norm = 3
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
