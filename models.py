@@ -108,14 +108,14 @@ class KnowledgeEncoding(nn.Module):
 
         self.alpha = alpha
         self.beta = beta
-        #  common_knowledge_path = './kgraphs/pre-trained/FB15K.RotatE.'
-        common_knowledge_path = './kgraphs/pre-trained/YAGO.RotatE.'
-        # demo_knowledge_path = './kgraphs/pre-trained-plus/liberal.RotatE.'
-        # rep_knowledge_path = './kgraphs/pre-trained-plus/conservative.RotatE.'
-        # demo_knowledge_path = './kgraphs/pre-trained-plus/liberal.HAKE.'
-        # rep_knowledge_path = './kgraphs/pre-trained-plus/conservative.HAKE.'
-        demo_knowledge_path = './kgraphs/pre-trained-plus/liberal.ModE.'
-        rep_knowledge_path = './kgraphs/pre-trained-plus/conservative.ModE.'
+        #  common_knowledge_path = './pre-trained/FB15K.RotatE.'
+        common_knowledge_path = './pre-trained/YAGO.RotatE.'
+        # demo_knowledge_path = './pre-trained/liberal.RotatE.'
+        # rep_knowledge_path = './pre-trained/conservative.RotatE.'
+        # demo_knowledge_path = './pre-trained/liberal.HAKE.'
+        # rep_knowledge_path = './pre-trained/conservative.HAKE.'
+        demo_knowledge_path = './pre-trained/liberal.ModE.'
+        rep_knowledge_path = './pre-trained/conservative.ModE.'
 
 
         if embed_size == 128:  
