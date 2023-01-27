@@ -36,22 +36,18 @@ def preprocess_text(text):
 
 def augment_text(df_train, df_title, df_label, samples=300, pr=0.2):
     aug_w2v = naw.WordEmbsAug(
-    # model_type='word2vec', model_path='../input/nlpword2vecembeddingspretrained/GoogleNews-vectors-negative300.bin',
     model_type='glove', model_path='.glove/glove.6B.300d.txt',
     action="substitute")
     aug_w2v.aug_p=pr
     aug_text=[]
     title = df_title['title'].values.tolist()
     label = df_label['label'].values.tolist()
-    ##selecting the minority class samples
     df_n=df_train[df_train.label==1].reset_index(drop=True)
-
     ## data augmentation loop
     for i in np.random.randint(0,len(df_n),samples):
         text = df_n.iloc[i]['text']
         augmented_text = aug_w2v.augment(text)
         aug_text.append(augmented_text)
-    
     ## dataframe
     aug = pd.DataFrame({'title': title, 'text':aug_text, 'label':label})
     df_train=random.shuffle(df_train.append(aug).reset_index(drop=True))
@@ -66,14 +62,13 @@ def KFold_data_preprocessing(dataset_n, data_path):
             vocab_size:
             num_class:
     """
-
+    
     num_class = 0
 
     if dataset_n =='SEMEVAL':
         num_class = 2
         k_folds = 10
         tokenizer = get_tokenizer('basic_english')
-        # data_path += '/semeval_sep.csv'
         data_path += '/SemEval.csv'
         augment = pd.read_csv('./data/semeval-aug.csv')
 
@@ -105,7 +100,6 @@ def KFold_data_preprocessing(dataset_n, data_path):
     #                 dataset['text'][index] = row.text[:3000]
     #     augment = pd.read_csv('./data/khan-aug.csv')
 
-
     dataset_x = dataset[['text','title']]
     dataset_y = dataset[['label']]
 
@@ -128,11 +122,6 @@ def KFold_data_preprocessing(dataset_n, data_path):
     with open('./kgraphs/pre-trained/entities_yago.dict') as rep_file:
         while (line := rep_file.readline().rstrip()):
             common_entity_list.append(line.split()[1].split('_')[0].lower())
-
-    #  with open('./kgraphs/pre-trained/entities_FB15K.dict') as rep_file:
-        #  while (line := rep_file.readline().rstrip()):
-            #  common_entity_list.append(line.split()[1])
-
     
     Skfold = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=10)
     fold_idx = 0
@@ -188,11 +177,8 @@ def KFold_data_preprocessing(dataset_n, data_path):
         # Weighted Random Sampler
         # class 0 : 366, class 1 : 214
         class_counts = y_train_aug_df.value_counts().to_list() # [366, 214]
-        # print(class_counts)
         num_samples = sum(class_counts) # 580
-        # print(num_samples)
         labels = y_train_aug_df.values
-        # print(labels)
         
         # each class weight initialization [580/366, 580/214]
         class_weights = [num_samples / class_counts[i] for i in range(len(class_counts))] 
@@ -206,7 +192,6 @@ def KFold_data_preprocessing(dataset_n, data_path):
 
         # build vocab
         tokenizer = get_tokenizer('basic_english')
-        #  vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<splt>'])
         vocab = build_vocab_from_iterator(yield_tokens(train_iter, tokenizer), specials=['<unk>', '<sep>'])
         vocab.set_default_index(vocab['<unk>'])
         
@@ -328,7 +313,6 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, samp
 
     # sampler addition
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, sampler = sampler, collate_fn=collate_batch)
-    # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
     valid_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch)
 
