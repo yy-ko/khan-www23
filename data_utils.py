@@ -172,7 +172,7 @@ def KFold_data_preprocessing(dataset_n, data_path):
             
         augment = pd.DataFrame({'title' : title, 'text' : aug_sentence, 'label' : label})
         '''
-        augment_train = augment#.sample(len(train_index))
+        augment_train = augment.sample(len(train_index))
         augment_x = augment_train[['text','title']]
         augment_y = augment_train[['label']]
 
