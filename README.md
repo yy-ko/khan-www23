@@ -26,7 +26,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 ## File structure
 ```
 ├── KHAN
-      ├── datasets             # data for KHAN, you can download from above anonymous google drive link
+      ├── datasets             # data for KHAN, you can download from above google drive link
             ├── article data
                   ├── SemEval
                   ├── Allsides-S
