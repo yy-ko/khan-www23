@@ -14,6 +14,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 
 ## Datasets
 1. [News articles datasets](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0) (SemEval, AllSides-S, AllSides-L)
+
 |Dataset|# of articles|Class distribution|
 |:---:|:---:|:---:|
 |SemEval|645|407/238|
