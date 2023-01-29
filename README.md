@@ -21,8 +21,8 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 |AllSides-S|14.7k|6.6k/4.6k/3.5k|
 |AllSides-L|719.2k|112.4k/202.9k/99.6k/62.6k/241.5k|
 
-2. Political Knowledge Graphs (KG-conservative, KG-liberal): [**link**](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq)
-3. Pre-trained KG embeddings (common, conservative, liberal): [**link**](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R)
+2. [Political Knowledge Graphs](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq) (KG-conservative, KG-liberal)
+3. [Pre-trained KG embeddings](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R) (common, conservative, liberal)
 
 ## File structure
 ```
