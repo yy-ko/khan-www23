@@ -13,13 +13,13 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 6. [Wikidata:Every politician/Political data model](https://www.wikidata.org/wiki/Wikidata:WikiProject_every_politician)
 
 ## Datasets
-1. [News articles datasets](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0) (SemEval, AllSides-S, AllSides-L)
+1. [News articles datasets](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0)
 
 |Dataset|# of articles|Class distribution|
 |:---:|:---:|:---:|
-|SemEval|645|407/238|
-|AllSides-S|14.7k|6.6k/4.6k/3.5k|
-|AllSides-L|719.2k|112.4k/202.9k/99.6k/62.6k/241.5k|
+|SemEval|645|407 / 238|
+|AllSides-S|14.7k|6.6k / 4.6k / 3.5k|
+|AllSides-L|719.2k|112.4k / 202.9k / 99.6k / 62.6k / 241.5k|
 
 2. [Political Knowledge Graphs](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq) (KG-conservative, KG-liberal)
 3. [Pre-trained KG embeddings](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R) (common, conservative, liberal)
