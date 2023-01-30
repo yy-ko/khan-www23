@@ -23,32 +23,6 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 
 3. [Pre-trained KG embeddings](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R) (common, conservative, liberal)
 
-## File structure
-```
-├── KHAN
-      ├── datasets             # data for KHAN, you can download from above google drive link
-            ├── article data
-                  ├── SemEval
-                  ├── Allsides-S
-                  └── Allsides-L
-                        ├── train
-                        └── test
-            ├── KG data
-                  ├── KG-conservative
-                        ├── entities_con.dict
-                        ├── relations_con.dict
-                        └── triplets_con.txt
-                  └── KG-liberal
-                        ├── entities_lib.dict
-                        ├── relations_lib.dict
-                        └── triplets_lib.txt
-      └── pre-trained
-            ├── common_emb
-            ├── conservative_emb
-            └── liberal_emb
-
-```
-
 ## Dependencies
 Our code runs on the Intel i7-9700k CPU with 64GB memory and NVIDIA RTX 2080 Ti GPU with 12GB, with the following packages installed:
 ```
