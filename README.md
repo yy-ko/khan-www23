@@ -4,14 +4,6 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 ## The overview of KHAN
 ![The overview of KHAN](./assets/khan_overview.png)
 
-## Available dataset
-1. [Reddit Dataset | Conservative and Liberal](https://drive.google.com/drive/folders/1RDSp2SoGgRFGybarVFUo6OPth8fiGjUC)
-2. [FB15k Dataset | Papers With Code](https://paperswithcode.com/dataset/fb15k)
-3. [DBpedia Dataset | Papers With Code](https://paperswithcode.com/dataset/dbpedia)
-4. [YAGO Dataset | Papers With Code](https://paperswithcode.com/dataset/yago)
-5. [NELL Dataset | Papers With Code](https://paperswithcode.com/dataset/nell)
-6. [Wikidata:Every politician/Political data model](https://www.wikidata.org/wiki/Wikidata:WikiProject_every_politician)
-
 ## Datasets
 1. [News articles datasets](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0)
 
@@ -21,7 +13,14 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 |AllSides-S|14.7k|6.6k / 4.6k / 3.5k|
 |AllSides-L|719.2k|112.4k / 202.9k / 99.6k / 62.6k / 241.5k|
 
-2. [Political Knowledge Graphs](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq) (KG-conservative, KG-liberal)
+2. [Political Knowledge Graphs](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq) (YAGO, KG-conservative, KG-liberal)
+
+| - |YAGO|KG-lib|KG-con|
+|:---:|:---:|:---:|:---:|
+|# of source posts| - |219,915|276,156|
+|# of entities|123,182|5,581|6,316|
+|# of relations|1,179,040|29,967|33,207|
+
 3. [Pre-trained KG embeddings](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R) (common, conservative, liberal)
 
 ## File structure
