@@ -4,7 +4,6 @@ import torch, sys
 from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-from torch.utils.data import dataset
 
 
 class KHANModel(nn.Module):
@@ -108,15 +107,9 @@ class KnowledgeEncoding(nn.Module):
 
         self.alpha = alpha
         self.beta = beta
-        #  common_knowledge_path = './pre-trained/FB15K.RotatE.'
         common_knowledge_path = './pre-trained/YAGO.RotatE.'
-        # demo_knowledge_path = './pre-trained/liberal.RotatE.'
-        # rep_knowledge_path = './pre-trained/conservative.RotatE.'
-        # demo_knowledge_path = './pre-trained/liberal.HAKE.'
-        # rep_knowledge_path = './pre-trained/conservative.HAKE.'
-        demo_knowledge_path = './pre-trained/liberal.ModE.'
-        rep_knowledge_path = './pre-trained/conservative.ModE.'
-
+        demo_knowledge_path = './pre-trained/liberal.ModE.' # HAKE, RotatE
+        rep_knowledge_path = './pre-trained/conservative.ModE.' # HAKE, RotatE
 
         if embed_size == 128:  
             common_knowledge_path += '128/entity_embedding.npy'
@@ -130,10 +123,6 @@ class KnowledgeEncoding(nn.Module):
             common_knowledge_path += '512/entity_embedding.npy'
             demo_knowledge_path += '512/entity_embedding.npy'
             rep_knowledge_path += '512/entity_embedding.npy'
-        elif embed_size == 1024:
-            common_knowledge_path += '1024/entity_embedding.npy'
-            demo_knowledge_path += '1024/entity_embedding.npy'
-            rep_knowledge_path += '1024/entity_embedding.npy'
         else:
             print ('Wrong embedding dimension! Dimension should be 128, 256, 512, or 1024')
             sys.exit(1)
@@ -210,7 +199,7 @@ class KnowledgeEncoding(nn.Module):
 
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+    def __init__(self, d_model: int, dropout: float = 0.3, max_len: int = 5000):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
