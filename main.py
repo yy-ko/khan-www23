@@ -1,24 +1,18 @@
 from __future__ import print_function
 
 import argparse
-import random, os, sys
+import random
 import numpy as np
-import pandas as pd
 import time
 import logging
 import warnings
 from tqdm import tqdm
-from typing import Tuple
-
 import torch
-from torch import nn, Tensor
-from torch import optim
+from torch import nn
 from scipy.special import softmax
-#  import torch.distributed as dist
-#  from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim.lr_scheduler import StepLR
 
-import data_utils, models
+import data_utils
 from models import KHANModel
 import gc
 gc.collect()
@@ -39,13 +33,7 @@ def set_random_seeds(random_seed=0):
     #  pass
 
 parser = argparse.ArgumentParser(description='Parsing parameters')
-
-# for multi-gpu
-#  parser.add_argument("--num_gpus", type=int, default=1, help="The number of GPUs.")
-#  parser.add_argument("--backend", type=str, default='nccl', help="Backend for Distributed PyTorch: nccl, gloo, mpi")
-#  parser.add_argument("--local_rank", type=int, help="Local rank. Necessary for using the torch.distributed.launch utility.")
 parser.add_argument("--gpu_index", type=int, help="GPU index. Necessary for specifying the CUDA device.")
-
 # models & datasets
 parser.add_argument('--model', type=str, default='KHAN', help='Name of Model.')
 parser.add_argument("--embed_size", type=int, default=128, help="Word/Sentence Embedding size.")
@@ -59,7 +47,6 @@ parser.add_argument('--beta', type=float, default=0.5, help='Weight of political
 
 parser.add_argument('--dataset', type=str, default='SEMEVAL', help='Name of dataset (SEMEVAL, ALLSIDES).')
 parser.add_argument('--data_path', type=str, default='./data', help='Data path.')
-
 parser.add_argument('--save_model', action='store_false', default=False, help='For Saving the current Model')
 parser.add_argument('--model_dir', type=str, default='../trained_models', help='Path for saving the trained model')
 
@@ -74,10 +61,6 @@ args = parser.parse_args()
 
 # Get the dataloaders and model
 device = torch.device("cuda:{}".format(args.gpu_index))
-
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# print('Device:', device)
-# print('Current cuda device:', torch.cuda.current_device())
 print('Count of using GPUs:', torch.cuda.device_count())
 
 def evaluate(model, device, dataloader) -> float:
@@ -112,10 +95,6 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
     model = model.to(device) # model to GPU
     total = sum([param.nelement() for param in model.parameters()])
     print("Total params: %.2fM" % (total/1e6))
-    
-    # for using parallel processing
-    # _model = model.cuda()
-    # model = nn.DataParallel(_model).to(device)
 
     criterion = nn.CrossEntropyLoss() # loss function
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=0.05) # optimizer
@@ -172,7 +151,6 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
         # ------------------------- Save Best Model ------------------------- #
         if val_accuracy > max_accuracy:
             max_accuracy = val_accuracy
-            #  best_model = copy.deepcopy(model)
 
         if args.save_model:
             torch.save(model.state_dict(), args.model_dir)
@@ -181,11 +159,9 @@ def train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_list, fol
     # ----------------------------- End of Training ------------------------------#
     # ----------------------------------------------------------------------------#
 
-    #  test_accuracy = evaluate(model, device, test_data)
     fold_train_time = time.time() - total_start_time
 
     print('')
-    # print('===================================== Training End =====================================')
     print('================================== FOLD - {:3d} =================================='.format(fold_idx))
     print('============= Test Accuracy: {:.4f}, Training time: {:.2f} (sec.) ================'.format(max_accuracy, fold_train_time))
     print('================================================================================')
@@ -201,20 +177,15 @@ def main():
     print('')
     print('==================================== Training Start ====================================')
 
-    data_utils.KFold_data_preprocessing(args.dataset, args.data_path)
+    data_utils.train_datasets(args.dataset, args.data_path)
     
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    
-    #  dist.init_process_group(backend='nccl')
-    #  world_size = dist.get_world_size()
-    #  rank = dist.get_rank()
 
     # Set random seeds for reproducibility
     set_random_seeds(args.seed)
 
     # Summary of training information
-    #  if global_rank == 0:
     print('====================================TRAIN INFO START====================================')
     print('  - TRAINING MODEL = %s' % (args.model))
     print('     - Embedding Size = %s' % (args.embed_size))
@@ -227,11 +198,9 @@ if __name__ == '__main__':
     print('     - Beta = %s' % (args.beta))
     print('  - DATASET = %s' % (args.dataset))
     print('  - BATCH SIZE = ' + str(args.batch_size))
-    #  print('  - EVAL/TEST BATCH SIZE = ' + str(args.eval_batch_size))
     print('  - NUM EPOCHS = ' + str(args.num_epochs))
     print('  - LEARNING RATE = ' + str(args.learning_rate))
     print('   ')
     # add more if needed
     
     main()
-    
