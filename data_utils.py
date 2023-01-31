@@ -1,111 +1,69 @@
 import torch, logging, sys
-from torch.utils.data import dataset, DataLoader, random_split, WeightedRandomSampler
-from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.functional import to_map_style_dataset
 
-from collections import Counter, OrderedDict
-from typing import Iterable
 import pandas as pd
 import numpy as np
-import random
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedKFold
-import nlpaug.augmenter.sentence as nas
-import nlpaug.augmenter.word as naw
-
 import main
 
 MAX_WORDS = 40
 
+# tokenize title and text
 def yield_tokens(data_iter, tokenizer):
     for _, title, text in data_iter:
         yield tokenizer(title)
         yield tokenizer(str(text))
 
+# preprocess article text
 def preprocess_text(text):
     text = text.str.lower() # lowercase
     text = text.str.replace(r"\#","") # replaces hashtags
     text = text.str.replace(r"http\S+","")  # remove URL addresses
-    #  text = text.str.replace(r"@","")
-    #  text = text.str.replace(r"[^A-Za-z0-9()!?\'\`\"]", " ")
-    #  text = text.str.replace("\s{2,}", " ")
     return text
 
-def augment_text(df_train, df_title, df_label, samples=300, pr=0.2):
-    aug_w2v = naw.WordEmbsAug(
-    model_type='glove', model_path='.glove/glove.6B.300d.txt',
-    action="substitute")
-    aug_w2v.aug_p=pr
-    aug_text=[]
-    title = df_title['title'].values.tolist()
-    label = df_label['label'].values.tolist()
-    df_n=df_train[df_train.label==1].reset_index(drop=True)
-    ## data augmentation loop
-    for i in np.random.randint(0,len(df_n),samples):
-        text = df_n.iloc[i]['text']
-        augmented_text = aug_w2v.augment(text)
-        aug_text.append(augmented_text)
-    ## dataframe
-    aug = pd.DataFrame({'title': title, 'text':aug_text, 'label':label})
-    df_train=random.shuffle(df_train.append(aug).reset_index(drop=True))
-    return df_train
-
-def KFold_data_preprocessing(dataset_n, data_path):
+# read datasets and train each k-fold
+def train_datasets(dataset_n, data_path):
     """
         Args:
-            dataset:
+            dataset_n:
             data_path:
-        Returns:
-            vocab_size:
-            num_class:
     """
-    
-    num_class = 0
 
+    num_class = 0
     if dataset_n =='SEMEVAL':
         num_class = 2
         k_folds = 10
         tokenizer = get_tokenizer('basic_english')
         data_path += '/SemEval.csv'
-        augment = pd.read_csv('./data/semeval-aug.csv')
 
     elif dataset_n =='ALLSIDES-S':
         num_class = 3
         k_folds = 10
         data_path += '/AllSides-S.csv'
-        augment = pd.read_csv('./data/kcd_allsides-aug.csv')
 
     elif dataset_n =='ALLSIDES-L':
         num_class = 5
         k_folds = 10
         data_path += '/AllSides-L.csv'
-        augment = pd.read_csv('./data/khan-aug.csv')
 
     else:
         logging.error('Invalid dataset name!')
         sys.exit(1)
 
-    # read a dataset file from a local path and pre-process it
+    # read a dataset file from a local path
     dataset = pd.read_csv(data_path)
     dataset.dropna(inplace=True)
     dataset.reset_index(drop=True, inplace=True)
-    
-    # if dataset_n =='ALLSIDES-L':
-    #     dataset = dataset.iloc[:700000,]
-    #     with pd.option_context('mode.chained_assignment', None):
-    #             for index, row in dataset.iterrows():
-    #                 dataset['text'][index] = row.text[:3000]
-    #     augment = pd.read_csv('./data/khan-aug.csv')
 
+    # separate dataset by x, y
     dataset_x = dataset[['text','title']]
     dataset_y = dataset[['label']]
-
-    # split a dataset into train/test datasets
-    # train_df, test_df = train_test_split(dataset, train_size=0.9)
     
+    # exploit common-sense and political knowledge
     knowledge_indices = {}
     rep_entity_list = []
     demo_entity_list = []
@@ -123,67 +81,40 @@ def KFold_data_preprocessing(dataset_n, data_path):
         while (line := common_file.readline().rstrip()):
             common_entity_list.append(line.split()[1].split('_')[0].lower())
     
+    # stratified k-fold training
     Skfold = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=10)
     fold_idx = 0
     total_accuracy = 0
     best_accuracy = 0
     total_train_time = 0
     acc_list = []
-    # index_list = []
     
     # K-th iteration
     # Extraction each fold train/testset and train
     for train_index, test_index in Skfold.split(dataset_x, dataset_y):
-        # index_list.append([train_index, test_index])
-        # continue
         fold_idx += 1
         x_train_df, x_test_df = dataset_x.loc[train_index], dataset_x.loc[test_index]
         y_train_df, y_test_df = dataset_y.loc[train_index], dataset_y.loc[test_index]
-        # x_train_aug_df = augment_text(x_train_df)
         
         # logging for data statistics
         print('  - Training data size: {}'.format(len(y_train_df)))
-        # print('  - Validataion data size: {}'.format(len(val_dataset)))
         print('  - Test data size: {}'.format(len(y_test_df)))
-        
-        # text augmentation
-        '''
-        df_title = x_train_df[['title']]
-        df_text = x_train_df[['text']]
-        df_label = y_train_df[['label']]
-        title = df_title['title'].values.tolist()
-        label = df_label['label'].values.tolist()
-        
-        aug_sentence = []
-        aug_sen = nas.AbstSummAug(model_path='t5-base', max_length=40000)
-        for sen in df_text.text.values.tolist():
-            aug_sentence.append(aug_sen.augment(sen, num_thread=8)[0])
-            
-        augment = pd.DataFrame({'title' : title, 'text' : aug_sentence, 'label' : label})
-        '''
-        augment_train = augment.sample(len(train_index))
-        augment_x = augment_train[['text','title']]
-        augment_y = augment_train[['label']]
-
-        x_train_aug_df = pd.concat([x_train_df,augment_x])
-        y_train_aug_df = pd.concat([y_train_df,augment_y])
-        x_train_aug_df.reset_index(drop=True, inplace=True)
-        y_train_aug_df.reset_index(drop=True, inplace=True)
-        x_train = x_train_aug_df.values
-        y_train = y_train_aug_df.values
+    
+        x_train = x_train_df.values
+        y_train = y_train_df.values
         x_test = x_test_df.values
         y_test = y_test_df.values
         
         # Weighted Random Sampler
         # class 0 : 366, class 1 : 214
-        class_counts = y_train_aug_df.value_counts().to_list() # [366, 214]
+        class_counts = y_train_df.value_counts().to_list() # [366, 214]
         num_samples = sum(class_counts) # 580
-        labels = y_train_aug_df.values
+        labels = y_train_df.values
         
         # each class weight initialization [580/366, 580/214]
         class_weights = [num_samples / class_counts[i] for i in range(len(class_counts))] 
         print(class_weights)
-
+        
         weights = [class_weights[int(labels[i][0])] for i in range(int(num_samples))]
         sampler = WeightedRandomSampler(torch.DoubleTensor(weights), int(num_samples))
 
@@ -202,16 +133,8 @@ def KFold_data_preprocessing(dataset_n, data_path):
         knowledge_indices['rep'] = rep_lookup_indices
         knowledge_indices['demo'] = demo_lookup_indices
         knowledge_indices['common'] = common_lookup_indices
-
-        #  print (len(rep_lookup_indices))
-        #  print (len(demo_lookup_indices))
-        #  print (len(common_lookup_indices))
-
-        #  print (len(set(rep_lookup_indices)))
-        #  print (len(set(demo_lookup_indices)))
-        #  print (len(set(common_lookup_indices)))
         
-        # train each k-fold 
+        # train each k-fold
         fold_accuracy, fold_train_time = main.train_each_fold(train_iter, test_iter, vocab, num_class, knowledge_indices, fold_idx, k_folds, sampler)
         total_accuracy += fold_accuracy
         if fold_accuracy > best_accuracy:
@@ -220,11 +143,12 @@ def KFold_data_preprocessing(dataset_n, data_path):
         total_train_time += fold_train_time
         acc_list.append(fold_accuracy)
         
-#         if dataset_n == 'ALLSIDES-S' and fold_idx == 3:
-#             break
-#         if dataset_n == 'ALLSIDES-L':
-#             break
-
+        if dataset_n == 'ALLSIDES-S' and fold_idx == 3:
+            break
+        if dataset_n == 'ALLSIDES-L':
+            break
+    
+    # K-folds Training Result
     print('')
     print('=============================== {:2d}-Folds Training Result ==============================='.format(fold_idx))
     print('=============== Total Accuracy: {:.4f},    Training time: {:.2f} (sec.)   ================'.format(total_accuracy/fold_idx, total_train_time))
@@ -244,9 +168,6 @@ def get_dataloaders(train_iter, test_iter, vocab, batch_size, max_sentence, samp
 
     train_dataset = to_map_style_dataset(train_iter)
     test_dataset = to_map_style_dataset(test_iter)
-    # train_size = int(len(train_dataset) * 1)
-    # val_size = len(train_dataset) - train_size
-    # train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
     def collate_batch(batch): # split a label and text in each row
         title_pipeline = lambda x: vocab(tokenizer(str(x)))
