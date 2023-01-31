@@ -4,7 +4,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 ## The overview of KHAN
 ![The overview of KHAN](./assets/khan_overview.png)
 
-- Datasets: To reflect the different political knowledge of each entity, we build two political knowledge graphs, **KG-lib** and **KG-con**. Also, for extensive evaluation, we construct a large-scale political news datatset, **AllSides-L**, much larger ($48\times$) than the existing largest political news article dataset
+- Datasets: To reflect the different political knowledge of each entity, we build two political knowledge graphs, **KG-lib** and **KG-con**. Also, for extensive evaluation, we construct a large-scale political news datatset, **AllSides-L**, much larger (48X) than the existing largest political news article dataset
 - Algorithm: We propose a novel approach to accurate political stance prediction (**KAHN**), employing (1) hierarchical attention networks (HAN) and (2) knowledge encoding (KE) to effectively capture both explicit and implicit factors of a news article.
 - Evaluation: Via extensive experiments, we demonstrate that (1) (_accuracy_) KHAN consistently achieves higher accuracies than all competing methods (up to 5.92% higher than the state-of-the-art method), (2) (_efficiency_) KHAN converges within comparable training time/epochs, and (3) (_effectiveness_) each of the main components of KHAN is effective in political stance prediction.
 
