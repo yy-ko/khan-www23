@@ -12,7 +12,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
     - Via extensive experiments, we demonstrate that (1) (_accuracy_) KHAN consistently achieves higher accuracies than all competing methods (up to 5.92% higher than the state-of-the-art method), (2) (_efficiency_) KHAN converges within comparable training time/epochs, and (3) (_effectiveness_) each of the main components of KHAN is effective in political stance prediction.
 
 ## Datasets
-1. News articles datasets ([link](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0))
+1. News articles datasets ([SemEval, AllSides-S, AllSides-L](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0))
 
 |Dataset|# of articles|Class distribution|
 |:---:|:---:|:---:|
