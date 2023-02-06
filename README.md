@@ -9,7 +9,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 - Evaluation: Via extensive experiments, we demonstrate that (1) (_accuracy_) KHAN consistently achieves higher accuracies than all competing methods (up to 5.92% higher than the state-of-the-art method), (2) (_efficiency_) KHAN converges within comparable training time/epochs, and (3) (_effectiveness_) each of the main components of KHAN is effective in political stance prediction.
 
 ## Datasets
-1. [News articles datasets](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0)
+1. News articles datasets ([link](https://drive.google.com/drive/u/2/folders/1ksV0PUncXyBnEHGPB4H4mae2ybXX3Ch0))
 
 |Dataset|# of articles|Class distribution|
 |:---:|:---:|:---:|
@@ -17,7 +17,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 |AllSides-S|14.7k|6.6k / 4.6k / 3.5k|
 |AllSides-L|719.2k|112.4k / 202.9k / 99.6k / 62.6k / 241.5k|
 
-2. [Knowledge Graphs](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq) ([YAGO](https://paperswithcode.com/dataset/yago3-10), KG-conservative, KG-liberal)
+2. Knowledge Graphs ([YAGO](https://paperswithcode.com/dataset/yago3-10), [KG-conservative, KG-liberal](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq))
 
 |KG dataset|# of source poses|# of entities|# of raltions|
 |:---:|:---:|:---:|:---:|
@@ -26,7 +26,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 |KG-con | 276,156 | 6,316   | 33,207 |
 
 
-3. [Pre-trained KG embeddings](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R) (common, conservative, liberal)
+3. Pre-trained KG embeddings ([(common, conservative, liberal)](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R))
 
 ## Dependencies
 Our code runs on the Intel i7-9700k CPU with 64GB memory and NVIDIA RTX 2080 Ti GPU with 12GB, with the following packages installed:
