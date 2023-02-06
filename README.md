@@ -26,7 +26,7 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 |KG-con | 276,156 | 6,316   | 33,207 |
 
 
-3. Pre-trained KG embeddings ([(common, conservative, liberal)](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R))
+3. Pre-trained KG embeddings ([common, conservative, liberal](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R))
 
 ## Dependencies
 Our code runs on the Intel i7-9700k CPU with 64GB memory and NVIDIA RTX 2080 Ti GPU with 12GB, with the following packages installed:
