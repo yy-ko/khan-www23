@@ -19,11 +19,12 @@ This repository provides an implementation of *KHAN* as described in the paper: 
 
 2. [Knowledge Graphs](https://drive.google.com/drive/u/2/folders/1DHlKOhKgISw9VTYmbMvnsIbaaLRtqhbq) ([YAGO](https://paperswithcode.com/dataset/yago3-10), KG-conservative, KG-liberal)
 
-| - |YAGO|KG-lib|KG-con|
+|KG dataset|# of source poses|# of entities|# of raltions|
 |:---:|:---:|:---:|:---:|
-|# of source posts| - |219,915|276,156|
-|# of entities|123,182|5,581|6,316|
-|# of relations|1,179,040|29,967|33,207|
+|YAGO   | -       | 123,182 | 1,179,040|
+|KG-lib | 219,915 | 5,581   | 29,967 |
+|KG-con | 276,156 | 6,316   | 33,207 |
+
 
 3. [Pre-trained KG embeddings](https://drive.google.com/drive/u/2/folders/14EgeI1RdSTccETqRgDd36writP6lUu1R) (common, conservative, liberal)
 
