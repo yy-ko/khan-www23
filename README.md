@@ -2,7 +2,7 @@
 This repository provides an implementation of *KHAN* as described in the paper: [KHAN: Knowledge-Aware Hierarchical Attention Networks for Accurate Political Stance Prediction](https://yy-ko.github.io/assets/files/WWW23-khan-paper.pdf) by Yunyong Ko, Seongeun Ryu, Soeun Han, Youngseung Jeon, Jaehoon Kim, Sohyun Park, Kyungsik Han, Hanghang Tong, and Sang-Wook Kim, In Proceedings of the ACM Web Conference (WWW) 2023.
 
 ## The overview of KHAN
-![The overview of KHAN](./assets/khan_overview.png)
+![The overview of KHAN](./khan_overview.png)
 
 - Datasets
     - To reflect the different political knowledge of each entity, we build two political knowledge graphs, **KG-lib** and **KG-con**. Also, for extensive evaluation, we construct a large-scale political news datatset, **AllSides-L**, much larger (48X) than the existing largest political news article dataset.
