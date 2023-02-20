@@ -1,4 +1,4 @@
-# [WWW'23] KHAN: Knowledge-Aware Hierarchical Attention Networks for Accurate Political Stance Prediction
+## [WWW'23] KHAN: Knowledge-Aware Hierarchical Attention Networks for Accurate Political Stance Prediction
 This repository provides an implementation of *KHAN* as described in the paper: [KHAN: Knowledge-Aware Hierarchical Attention Networks for Accurate Political Stance Prediction](https://yy-ko.github.io/assets/files/WWW23-khan-paper.pdf) by Yunyong Ko, Seongeun Ryu, Soeun Han, Youngseung Jeon, Jaehoon Kim, Sohyun Park, Kyungsik Han, Hanghang Tong, and Sang-Wook Kim, In Proceedings of the ACM Web Conference (WWW) 2023.
 
 ## The overview of KHAN
