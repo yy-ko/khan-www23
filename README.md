@@ -72,12 +72,8 @@ Please cite our paper if you have used the code in your work. You can use the fo
   pages={1572--1583},
   year={2023},
   isbn = {9781450394161},
-  publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-url = {https://doi.org/10.1145/3543507.3583300},
-doi = {10.1145/3543507.3583300},
-pages = {1572–1583},
-numpages = {12},
-location = {Austin, TX, USA},
+  publisher = {Association for Computing Machinery (ACM)},
+  doi = {10.1145/3543507.3583300},
+  location = {Austin, TX, USA},
 }
 ```
