@@ -69,7 +69,7 @@ Please cite our paper if you have used the code in your work. You can use the fo
   title={KHAN: Knowledge-Aware Hierarchical Attention Networks for Accurate Political Stance Prediction},
   author={Ko, Yunyong and Ryu, Seongeun and Han, Soeun and Jeon,Youngseung and Kim, Jaehoon and Park, Sohyun and Han, Kyungsik Tong, Hanghang and Kim., Sang-Wook},
   booktitle={Proceedings of the ACM Web Conference (WWW) 2023},
-  pages={xxxx--xxxx},
+  pages={1572--1583},
   year={2023}
 }
 ```
