@@ -70,6 +70,14 @@ Please cite our paper if you have used the code in your work. You can use the fo
   author={Ko, Yunyong and Ryu, Seongeun and Han, Soeun and Jeon,Youngseung and Kim, Jaehoon and Park, Sohyun and Han, Kyungsik Tong, Hanghang and Kim., Sang-Wook},
   booktitle={Proceedings of the ACM Web Conference (WWW) 2023},
   pages={1572--1583},
-  year={2023}
+  year={2023},
+  isbn = {9781450394161},
+  publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3543507.3583300},
+doi = {10.1145/3543507.3583300},
+pages = {1572–1583},
+numpages = {12},
+location = {Austin, TX, USA},
 }
 ```
